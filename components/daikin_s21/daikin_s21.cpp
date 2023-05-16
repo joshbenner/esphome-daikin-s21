@@ -9,7 +9,7 @@ using namespace esphome;
 namespace esphome {
 namespace daikin_s21 {
 
-#define S21_EXPERIMENTS
+// #define S21_EXPERIMENTS
 
 #define SETPOINT_MIN 18
 #define SETPOINT_MAX 32
@@ -63,15 +63,14 @@ inline float c10_f(uint16_t c10) { return c10_c(c10) * 1.8 + 32.0; }
 
 void dump_s21_state(DaikinS21State *state) {
   ESP_LOGD(TAG, "Current S21 State:");
-  // ESP_LOGD(TAG, "  Power: %s", state->power ? "ON" : "OFF");
   ESP_LOGD(TAG, "   Mode: %s (%s)",
-           climate::climate_mode_to_string(state->mode),
+           LOG_STR_ARG(climate::climate_mode_to_string(state->mode)),
            state->idle ? "idle" : "active");
   float degc = state->setpoint / 10.0;
   float degf = degc * 1.8 + 32.0;
   ESP_LOGD(TAG, "   Temp: %.1f C (%.1f F)", c10_c(state->setpoint),
            c10_f(state->setpoint));
-  ESP_LOGD(TAG, "    Fan: %c (%d rpm)", state->fan_mode, state->fan_rpm);
+  ESP_LOGD(TAG, "    Fan: %c (%d rpm)", (int)state->fan_mode, state->fan_rpm);
   ESP_LOGD(TAG, "  Swing: Vertical: %s  |  Horizontal: %s",
            state->swing_v ? "YES" : "NO", state->swing_h ? "YES" : "NO");
   ESP_LOGD(TAG, " Powerf: %s", state->powerful ? "YES" : "NO");
@@ -86,16 +85,52 @@ void dump_s21_state(DaikinS21State *state) {
 
 void DaikinS21Climate::set_uarts(uart::UARTComponent *tx,
                                  uart::UARTComponent *rx) {
-  this->uart = new UARTDevicePair();
-  this->uart->set_uart_tx_parent(tx);
-  this->uart->set_uart_rx_parent(rx);
+  this->tx_uart = tx;
+  this->rx_uart = rx;
+}
+
+#define S21_BAUD_RATE 2400
+#define S21_STOP_BITS 2
+#define S21_DATA_BITS 8
+#define S21_PARITY uart::UART_CONFIG_PARITY_EVEN
+
+void DaikinS21Climate::check_uart_settings() {
+  for (auto uart : {this->tx_uart, this->rx_uart}) {
+    if (uart->get_baud_rate() != S21_BAUD_RATE) {
+      ESP_LOGE(
+          TAG,
+          "  Invalid baud_rate: Integration requested baud_rate %u but you "
+          "have %u!",
+          S21_BAUD_RATE, uart->get_baud_rate());
+    }
+    if (uart->get_stop_bits() != S21_STOP_BITS) {
+      ESP_LOGE(
+          TAG,
+          "  Invalid stop bits: Integration requested stop_bits %u but you "
+          "have %u!",
+          S21_STOP_BITS, uart->get_stop_bits());
+    }
+    if (uart->get_data_bits() != S21_DATA_BITS) {
+      ESP_LOGE(TAG,
+               "  Invalid number of data bits: Integration requested %u data "
+               "bits but you have %u!",
+               S21_DATA_BITS, uart->get_data_bits());
+    }
+    if (uart->get_parity() != S21_PARITY) {
+      ESP_LOGE(
+          TAG,
+          "  Invalid parity: Integration requested parity %s but you have %s!",
+          LOG_STR_ARG(parity_to_str(S21_PARITY)),
+          LOG_STR_ARG(parity_to_str(uart->get_parity())));
+    }
+  }
 }
 
 void DaikinS21Climate::dump_config() {
   ESP_LOGCONFIG(TAG, "DaikinS21Climate:");
   ESP_LOGCONFIG(TAG, "  Update interval: %u", this->get_update_interval());
   this->dump_traits_(TAG);
-  this->uart->check_uart_settings(2400, 2, uart::UART_CONFIG_PARITY_EVEN, 8);
+  this->check_uart_settings();
 }
 
 climate::ClimateTraits DaikinS21Climate::traits() {
@@ -128,47 +163,9 @@ climate::ClimateTraits DaikinS21Climate::traits() {
 
 void DaikinS21Climate::flush_rx() {
   uint8_t byte;
-  while (this->uart->available() > 0) {
-    this->uart->read_byte(&byte);
+  while (this->rx_uart->available() > 0) {
+    this->rx_uart->read_byte(&byte);
   }
-}
-
-bool DaikinS21Climate::read_bytes(uint8_t *bytes, size_t len,
-                                  uint32_t timeout) {
-  uint32_t start = millis();
-  while (this->uart->available() < len) {
-    if (millis() - start > timeout) {
-      ESP_LOGD(TAG, "Timeout waiting for byte %u", this->uart->available());
-      return false;
-    }
-    yield();
-  }
-  this->uart->read_array(bytes, len);
-  return true;
-}
-
-bool DaikinS21Climate::read_bytes(uint8_t *bytes, size_t len) {
-  return this->read_bytes(bytes, len, S21_RESPONSE_TIMEOUT);
-}
-
-bool DaikinS21Climate::read_byte(uint8_t *byte, uint32_t timeout) {
-  return this->read_bytes(byte, 1, timeout);
-}
-
-bool DaikinS21Climate::read_byte(uint8_t *byte) {
-  return this->read_byte(byte, S21_RESPONSE_TIMEOUT);
-}
-
-void DaikinS21Climate::write_bytes(uint8_t *bytes, size_t len) {
-  this->uart->write_array(bytes, len);
-}
-
-void DaikinS21Climate::write_bytes(std::vector<uint8_t> &bytes) {
-  this->uart->write_array(bytes);
-}
-
-void DaikinS21Climate::write_byte(uint8_t byte) {
-  this->uart->write_byte(byte);
 }
 
 // Adapated from ESPHome UART debugger
@@ -235,8 +232,8 @@ bool DaikinS21Climate::read_frame(std::vector<uint8_t> &payload) {
       ESP_LOGW(TAG, "Timeout waiting for frame");
       return false;
     }
-    while (this->uart->available()) {
-      this->read_byte(&byte);
+    while (this->rx_uart->available()) {
+      this->rx_uart->read_byte(&byte);
       if (byte == ACK) {
         ESP_LOGW(TAG, "Unexpected ACK waiting to read start of frame");
         continue;
@@ -272,11 +269,11 @@ bool DaikinS21Climate::read_frame(std::vector<uint8_t> &payload) {
 }
 
 void DaikinS21Climate::write_frame(std::vector<uint8_t> payload) {
-  this->write_byte(STX);
-  this->write_bytes(payload);
-  this->write_byte(s21_checksum(&payload[0], payload.size()));
-  this->write_byte(ETX);
-  this->uart->flush();
+  this->tx_uart->write_byte(STX);
+  this->tx_uart->write_array(payload);
+  this->tx_uart->write_byte(s21_checksum(&payload[0], payload.size()));
+  this->tx_uart->write_byte(ETX);
+  this->tx_uart->flush();
 }
 
 bool DaikinS21Climate::s21_query(std::vector<uint8_t> code) {
@@ -287,7 +284,7 @@ bool DaikinS21Climate::s21_query(std::vector<uint8_t> code) {
   this->write_frame(code);
 
   uint8_t byte;
-  if (!this->read_byte(&byte)) {
+  if (!this->rx_uart->read_byte(&byte)) {
     ESP_LOGW(TAG, "Timeout waiting for %s response", c.c_str());
     return false;
   }
@@ -306,9 +303,9 @@ bool DaikinS21Climate::s21_query(std::vector<uint8_t> code) {
     return false;
   }
 
-  this->write_byte(ACK);
-  this->uart->flush();
-  this->flush_rx();
+  this->tx_uart->write_byte(ACK);
+  // this->tx_uart->flush();
+  // this->flush_rx();
 
   std::vector<uint8_t> rcode;
   std::vector<uint8_t> payload;
@@ -328,8 +325,8 @@ bool DaikinS21Climate::parse_response(std::vector<uint8_t> rcode,
   uint8_t mnum;  // Mode number
   bool power;    // Power state
 
-  ESP_LOGD(TAG, "S21: %s -> %s (%d)", str_repr(rcode).c_str(),
-           str_repr(payload).c_str(), payload.size());
+  // ESP_LOGD(TAG, "S21: %s -> %s (%d)", str_repr(rcode).c_str(),
+  //          str_repr(payload).c_str(), payload.size());
 
   switch (rcode[0]) {
     case 'G':      // F -> G
@@ -387,8 +384,8 @@ bool DaikinS21Climate::parse_response(std::vector<uint8_t> rcode,
           return false;
       }
   }
-  // ESP_LOGD(TAG, "Unknown response %s -> \"%s\"", str_repr(rcode).c_str(),
-  //          str_repr(payload).c_str());
+  ESP_LOGD(TAG, "Unknown response %s -> \"%s\"", str_repr(rcode).c_str(),
+           str_repr(payload).c_str());
   return false;
 }
 
@@ -411,20 +408,20 @@ void DaikinS21Climate::update() {
   std::vector<std::string> queries = {"F1", "F5", "RH", "RI", "Ra", "RL", "Rd"};
   this->run_queries(queries);
 
-  ESP_LOGD(TAG, "** UNKNOWN QUERIES **");
 #ifdef S21_EXPERIMENTS
+  ESP_LOGD(TAG, "** UNKNOWN QUERIES **");
   // auto experiments = {"F2", "F3", "F4", "F8", "F9", "F0", "FA", "FB", "FC",
   //                     "FD", "FE", "FF", "FG", "FH", "FI", "FJ", "FK", "FL",
   //                     "FM", "FN", "FO", "FP", "FQ", "FR", "FS", "FT", "FU",
   //                     "FV", "FW", "FX", "FY", "FZ"};
   // Observed BRP device querying these.
   std::vector<std::string> experiments = {"F2", "F3", "F4", "RN",
-                                          "RX", "RD", "M", "FU0F"};
+                                          "RX", "RD", "M",  "FU0F"};
   this->run_queries(experiments);
+#endif
 
   dump_s21_state(&this->state);
   ESP_LOGD(TAG, "** END UPDATE *****************************");
-#endif
 }
 
 void DaikinS21Climate::control(const climate::ClimateCall &call) {}

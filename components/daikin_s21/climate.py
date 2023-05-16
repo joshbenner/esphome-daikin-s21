@@ -35,7 +35,6 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await climate.register_climate(var, config)
-    # await uart.register_uart_device(var, config)
     tx_uart = await cg.get_variable(config[CONF_TX_UART])
     rx_uart = await cg.get_variable(config[CONF_RX_UART])
     cg.add(var.set_uarts(tx_uart, rx_uart))

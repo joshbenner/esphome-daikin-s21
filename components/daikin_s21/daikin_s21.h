@@ -3,7 +3,6 @@
 #include "esphome/components/climate/climate.h"
 #include "esphome/components/uart/uart.h"
 #include "esphome/core/component.h"
-#include "uart_device_pair.h"
 
 namespace esphome {
 namespace daikin_s21 {
@@ -17,15 +16,17 @@ enum class FanMode : char {
   Speed5 = '7'
 };
 
+// clang-format off
 static const climate::ClimateMode OpModes[] = {
-  climate::CLIMATE_MODE_OFF, // Unused
-  climate::CLIMATE_MODE_HEAT_COOL,
-  climate::CLIMATE_MODE_DRY,
-  climate::CLIMATE_MODE_COOL,
-  climate::CLIMATE_MODE_HEAT,
-  climate::CLIMATE_MODE_OFF, // Unused
-  climate::CLIMATE_MODE_FAN_ONLY
+    climate::CLIMATE_MODE_OFF,  // Unused
+    climate::CLIMATE_MODE_HEAT_COOL,
+    climate::CLIMATE_MODE_DRY,
+    climate::CLIMATE_MODE_COOL,
+    climate::CLIMATE_MODE_HEAT,
+    climate::CLIMATE_MODE_OFF,  // Unused
+    climate::CLIMATE_MODE_FAN_ONLY
 };
+// clang-format on
 
 struct DaikinS21State {
   climate::ClimateMode mode = climate::CLIMATE_MODE_OFF;
@@ -54,15 +55,6 @@ class DaikinS21Climate : public climate::Climate, public PollingComponent {
  protected:
   climate::ClimateTraits traits() override;
 
-  bool read_bytes(uint8_t *bytes, size_t len, uint32_t timeout);
-  bool read_bytes(uint8_t *bytes, size_t len);
-  bool read_byte(uint8_t *byte, uint32_t timeout);
-  bool read_byte(uint8_t *byte);
-
-  void write_bytes(uint8_t *bytes, size_t len);
-  void write_bytes(std::vector<uint8_t> &bytes);
-  void write_byte(uint8_t byte);
-
   bool read_frame(std::vector<uint8_t> &payload);
   void write_frame(std::vector<uint8_t> payload);
 
@@ -70,11 +62,11 @@ class DaikinS21Climate : public climate::Climate, public PollingComponent {
   bool parse_response(std::vector<uint8_t> rcode, std::vector<uint8_t> payload);
   void run_queries(std::vector<std::string> queries);
   void flush_rx();
+  void check_uart_settings();
 
-  UARTDevicePair *uart;
   DaikinS21State state;
-  std::vector<uint8_t> rx_buf;
-  bool awaiting_response = false;
+  uart::UARTComponent *tx_uart{nullptr};
+  uart::UARTComponent *rx_uart{nullptr};
 };
 
 }  // namespace daikin_s21
