@@ -61,7 +61,6 @@ class DaikinS21Climate : public climate::Climate, public PollingComponent {
   bool s21_query(std::vector<uint8_t> code);
   bool parse_response(std::vector<uint8_t> rcode, std::vector<uint8_t> payload);
   void run_queries(std::vector<std::string> queries);
-  void flush_rx();
   void check_uart_settings();
 
   DaikinS21State state;

@@ -161,13 +161,6 @@ climate::ClimateTraits DaikinS21Climate::traits() {
   return traits;
 }
 
-void DaikinS21Climate::flush_rx() {
-  uint8_t byte;
-  while (this->rx_uart->available() > 0) {
-    this->rx_uart->read_byte(&byte);
-  }
-}
-
 // Adapated from ESPHome UART debugger
 std::string hex_repr(uint8_t *bytes, size_t len) {
   std::string res;
@@ -304,8 +297,6 @@ bool DaikinS21Climate::s21_query(std::vector<uint8_t> code) {
   }
 
   this->tx_uart->write_byte(ACK);
-  // this->tx_uart->flush();
-  // this->flush_rx();
 
   std::vector<uint8_t> rcode;
   std::vector<uint8_t> payload;
@@ -340,7 +331,6 @@ bool DaikinS21Climate::parse_response(std::vector<uint8_t> rcode,
           } else {
             this->state.mode = OpModes[mnum];
           }
-          // this->state.mode = (OpMode) bytes[1];
           this->state.setpoint = (payload[2] - 28) * 5;  // Celsius * 10
           this->state.fan_mode = (FanMode) payload[3];
           return true;
@@ -392,7 +382,6 @@ bool DaikinS21Climate::parse_response(std::vector<uint8_t> rcode,
 void DaikinS21Climate::run_queries(std::vector<std::string> queries) {
   std::vector<uint8_t> code;
 
-  this->flush_rx();
   for (auto q : queries) {
     code.clear();
     for (auto i = 0; i < q.length(); i++) {
