@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include "esphome/components/climate/climate.h"
 #include "esphome/components/uart/uart.h"
 #include "esphome/core/component.h"
@@ -7,13 +8,8 @@
 namespace esphome {
 namespace daikin_s21 {
 
-enum class FanMode : char {
-  Auto = 'A',
-  Speed1 = '3',
-  Speed2 = '4',
-  Speed3 = '5',
-  Speed4 = '6',
-  Speed5 = '7'
+static std::map<uint8_t, std::string> FanModes = {
+  {'A', "Auto"}, {'3', "1"}, {'4', "2"}, {'5', "3"}, {'6', "4"}, {'7', "5"}
 };
 
 // clang-format off
@@ -27,22 +23,6 @@ static const climate::ClimateMode OpModes[] = {
     climate::CLIMATE_MODE_FAN_ONLY
 };
 // clang-format on
-
-struct DaikinS21State {
-  climate::ClimateMode mode = climate::CLIMATE_MODE_OFF;
-  FanMode fan_mode = FanMode::Auto;
-  bool swing_v = false;
-  bool swing_h = false;
-  bool powerful = false;
-  bool econo = false;
-  bool idle = false;
-  // Temps stored as integer celsius * 10 instead of float.
-  int16_t setpoint = 230;
-  int16_t inside = 0;
-  int16_t outside = 0;
-  int16_t coil = 0;
-  uint16_t fan_rpm = 0;
-};
 
 class DaikinS21Climate : public climate::Climate, public PollingComponent {
  public:
@@ -63,7 +43,6 @@ class DaikinS21Climate : public climate::Climate, public PollingComponent {
   void run_queries(std::vector<std::string> queries);
   void check_uart_settings();
 
-  DaikinS21State state;
   uart::UARTComponent *tx_uart{nullptr};
   uart::UARTComponent *rx_uart{nullptr};
 };

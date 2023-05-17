@@ -61,27 +61,24 @@ inline float c10_c(uint16_t c10) { return c10 / 10.0; }
 
 inline float c10_f(uint16_t c10) { return c10_c(c10) * 1.8 + 32.0; }
 
-void dump_s21_state(DaikinS21State *state) {
-  ESP_LOGD(TAG, "Current S21 State:");
-  ESP_LOGD(TAG, "   Mode: %s (%s)",
-           LOG_STR_ARG(climate::climate_mode_to_string(state->mode)),
-           state->idle ? "idle" : "active");
-  float degc = state->setpoint / 10.0;
-  float degf = degc * 1.8 + 32.0;
-  ESP_LOGD(TAG, "   Temp: %.1f C (%.1f F)", c10_c(state->setpoint),
-           c10_f(state->setpoint));
-  ESP_LOGD(TAG, "    Fan: %c (%d rpm)", (int)state->fan_mode, state->fan_rpm);
-  ESP_LOGD(TAG, "  Swing: Vertical: %s  |  Horizontal: %s",
-           state->swing_v ? "YES" : "NO", state->swing_h ? "YES" : "NO");
-  ESP_LOGD(TAG, " Powerf: %s", state->powerful ? "YES" : "NO");
-  ESP_LOGD(TAG, "  Econo: %s", state->econo ? "YES" : "NO");
-  ESP_LOGD(TAG, " Inside: %.1f C (%.1f F)", c10_c(state->inside),
-           c10_f(state->inside));
-  ESP_LOGD(TAG, "Outside: %.1f C (%.1f F)", c10_c(state->outside),
-           c10_f(state->outside));
-  ESP_LOGD(TAG, "   Coil: %.1f C (%.1f F)", c10_c(state->coil),
-           c10_f(state->coil));
-}
+// void dump_s21_state(DaikinS21Climate *climate) {
+//   ESP_LOGD(TAG, "Current S21 State:");
+//   ESP_LOGD(TAG, "   Mode: %s (%s)",
+//            LOG_STR_ARG(climate::climate_mode_to_string(climate->mode)),
+//            climate::climate_action_to_string(climate->action));
+//   float degc = climate->target_temperature;
+//   float degf = degc * 1.8 + 32.0;
+//   ESP_LOGD(TAG, "   Temp: %.1f C (%.1f F)", degc, degf);
+//   ESP_LOGD(TAG, "    Fan: %s", climate->custom_fan_mode);
+//   ESP_LOGD(TAG, "  Swing: %s",
+//            climate::climate_swing_mode_to_string(climate->swing_mode));
+//   // ESP_LOGD(TAG, " Inside: %.1f C (%.1f F)", c10_c(state->inside),
+//   //          c10_f(state->inside));
+//   // ESP_LOGD(TAG, "Outside: %.1f C (%.1f F)", c10_c(state->outside),
+//   //          c10_f(state->outside));
+//   // ESP_LOGD(TAG, "   Coil: %.1f C (%.1f F)", c10_c(state->coil),
+//   //          c10_f(state->coil));
+// }
 
 void DaikinS21Climate::set_uarts(uart::UARTComponent *tx,
                                  uart::UARTComponent *rx) {
@@ -149,7 +146,11 @@ climate::ClimateTraits DaikinS21Climate::traits() {
        climate::CLIMATE_MODE_COOL, climate::CLIMATE_MODE_HEAT,
        climate::CLIMATE_MODE_FAN_ONLY, climate::CLIMATE_MODE_DRY});
 
-  traits.set_supported_custom_fan_modes({"Auto", "1", "2", "3", "4", "5"});
+  std::set<std::string> fan_mode_names;
+  for (auto m : FanModes) {
+    fan_mode_names.insert(m.second);
+  }
+  traits.set_supported_custom_fan_modes(fan_mode_names);
 
   traits.set_supported_swing_modes({
       climate::CLIMATE_SWING_OFF,
@@ -315,6 +316,7 @@ bool DaikinS21Climate::parse_response(std::vector<uint8_t> rcode,
                                       std::vector<uint8_t> payload) {
   uint8_t mnum;  // Mode number
   bool power;    // Power state
+  bool h, v;
 
   // ESP_LOGD(TAG, "S21: %s -> %s (%d)", str_repr(rcode).c_str(),
   //          str_repr(payload).c_str(), payload.size());
@@ -327,42 +329,75 @@ bool DaikinS21Climate::parse_response(std::vector<uint8_t> rcode,
           power = (payload[0] == '1');
           if (!power || mnum < 1 ||
               mnum > (sizeof(OpModes) / sizeof(OpModes[0]))) {
-            this->state.mode = climate::CLIMATE_MODE_OFF;
+            this->mode = climate::CLIMATE_MODE_OFF;
           } else {
-            this->state.mode = OpModes[mnum];
+            this->mode = OpModes[mnum];
           }
-          this->state.setpoint = (payload[2] - 28) * 5;  // Celsius * 10
-          this->state.fan_mode = (FanMode) payload[3];
+          this->target_temperature = ((payload[2] - 28) * 5) / 10.0;
+          if (FanModes.count(payload[3])) {
+            this->custom_fan_mode = FanModes[payload[3]];
+          } else {
+            ESP_LOGW(TAG, "Unknown G1 fan mode byte: %s",
+                     str_repr(&payload[3], 1).c_str());
+          }
           return true;
         case '5':  // F5 -> G5 -- Swing state
-          this->state.swing_v = (bool) (payload[0] & 1);
-          this->state.swing_h = (bool) (payload[0] & 2);
-          return true;
-        case '6':  // F6 -> G6 -- Powerful
-          this->state.powerful = (payload[0] == '2');
-          return true;
-        case '7':  // F7 -> G7 -- Econo
-          this->state.econo = (payload[1] == '2');
+          switch (payload[0]) {
+            case '0':
+              this->swing_mode = climate::CLIMATE_SWING_OFF;
+              break;
+            case '1':
+              this->swing_mode = climate::CLIMATE_SWING_VERTICAL;
+              break;
+            case '2':
+              this->swing_mode = climate::CLIMATE_SWING_HORIZONTAL;
+              break;
+            case '7':
+              this->swing_mode = climate::CLIMATE_SWING_BOTH;
+              break;
+            default:
+              ESP_LOGW(TAG, "Unknown G5 swing status byte: %s",
+                       str_repr(&payload[0], 1).c_str());
+              this->swing_mode = climate::CLIMATE_SWING_OFF;
+          }
           return true;
       }
       break;
     case 'S':      // R -> S
       switch (rcode[1]) {
         case 'H':  // Inside temperature
-          this->state.inside = temp_bytes_to_c10(payload);
+          this->current_temperature = temp_bytes_to_c10(payload) / 10.0;
           return true;
-        case 'I':  // Coil temperature
-          this->state.coil = temp_bytes_to_c10(payload);
-          return true;
-        case 'a':  // Outside temperature
-          this->state.outside = temp_bytes_to_c10(payload);
-          return true;
-        case 'L':  // Fan speed
-          this->state.fan_rpm = bytes_to_num(payload) * 10;
-          return true;
+        // case 'I':  // Coil temperature
+        //   this->state.coil = temp_bytes_to_c10(payload);
+        //   return true;
+        // case 'a':  // Outside temperature
+        //   this->state.outside = temp_bytes_to_c10(payload);
+        //   return true;
+        // case 'L':  // Fan speed
+        //   this->state.fan_rpm = bytes_to_num(payload) * 10;
+        //   return true;
         case 'd':  // Compressor state / frequency? Idle if 0.
-          this->state.idle =
-              (payload[0] == '0' && payload[1] == '0' && payload[2] == '0');
+          if (payload[0] == '0' && payload[1] == '0' && payload[2] == '0') {
+            this->action = climate::CLIMATE_ACTION_IDLE;
+          } else {
+            switch (this->mode) {
+              case climate::CLIMATE_MODE_COOL:
+                this->action = climate::CLIMATE_ACTION_COOLING;
+                break;
+              case climate::CLIMATE_MODE_HEAT:
+                this->action = climate::CLIMATE_ACTION_HEATING;
+                break;
+              case climate::CLIMATE_MODE_FAN_ONLY:
+                this->action = climate::CLIMATE_ACTION_FAN;
+                break;
+              case climate::CLIMATE_MODE_DRY:
+                this->action = climate::CLIMATE_ACTION_DRYING;
+              default:
+                // TODO: How to know what action is in auto mode?
+                this->action = climate::CLIMATE_ACTION_OFF;
+            }
+          }
           return true;
         default:
           if (payload.size() > 3) {
@@ -393,7 +428,6 @@ void DaikinS21Climate::run_queries(std::vector<std::string> queries) {
 
 void DaikinS21Climate::update() {
   ESP_LOGD(TAG, "** BEGIN UPDATE *****************************");
-  DaikinS21State state;
   std::vector<std::string> queries = {"F1", "F5", "RH", "RI", "Ra", "RL", "Rd"};
   this->run_queries(queries);
 
@@ -409,8 +443,8 @@ void DaikinS21Climate::update() {
   this->run_queries(experiments);
 #endif
 
-  dump_s21_state(&this->state);
   ESP_LOGD(TAG, "** END UPDATE *****************************");
+  this->publish_state();
 }
 
 void DaikinS21Climate::control(const climate::ClimateCall &call) {}
