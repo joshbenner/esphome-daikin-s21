@@ -53,55 +53,78 @@ climate::ClimateTraits DaikinS21Climate::traits() {
   return traits;
 }
 
-void DaikinS21Climate::set_daikin_climate_mode(DaikinClimateMode mode) {
+climate::ClimateMode DaikinS21Climate::d2e_climate_mode(
+    DaikinClimateMode mode) {
   switch (mode) {
     case DaikinClimateMode::Auto:
-      this->mode = climate::CLIMATE_MODE_HEAT_COOL;
-      break;
+      return climate::CLIMATE_MODE_HEAT_COOL;
     case DaikinClimateMode::Cool:
-      this->mode = climate::CLIMATE_MODE_COOL;
-      break;
+      return climate::CLIMATE_MODE_COOL;
     case DaikinClimateMode::Heat:
-      this->mode = climate::CLIMATE_MODE_HEAT;
-      break;
+      return climate::CLIMATE_MODE_HEAT;
     case DaikinClimateMode::Dry:
-      this->mode = climate::CLIMATE_MODE_DRY;
-      break;
+      return climate::CLIMATE_MODE_DRY;
     case DaikinClimateMode::Fan:
-      this->mode = climate::CLIMATE_MODE_FAN_ONLY;
-      break;
+      return climate::CLIMATE_MODE_FAN_ONLY;
     case DaikinClimateMode::Disabled:
     default:
-      break;  // Do nothing
+      return climate::CLIMATE_MODE_OFF;
   }
 }
 
-void DaikinS21Climate::set_daikin_fan_mode(DaikinFanMode mode) {
+DaikinClimateMode DaikinS21Climate::e2d_climate_mode(
+    climate::ClimateMode mode) {
   switch (mode) {
-    case DaikinFanMode::Auto:
-      this->set_custom_fan_mode_("Auto");
-      break;
-    case DaikinFanMode::Speed1:
-      this->set_custom_fan_mode_("1");
-      break;
-    case DaikinFanMode::Speed2:
-      this->set_custom_fan_mode_("2");
-      break;
-    case DaikinFanMode::Speed3:
-      this->set_custom_fan_mode_("3");
-      break;
-    case DaikinFanMode::Speed4:
-      this->set_custom_fan_mode_("4");
-      break;
-    case DaikinFanMode::Speed5:
-      this->set_custom_fan_mode_("5");
-      break;
+    case climate::CLIMATE_MODE_HEAT_COOL:
+      return DaikinClimateMode::Auto;
+    case climate::CLIMATE_MODE_HEAT:
+      return DaikinClimateMode::Heat;
+    case climate::CLIMATE_MODE_COOL:
+      return DaikinClimateMode::Cool;
+    case climate::CLIMATE_MODE_DRY:
+      return DaikinClimateMode::Dry;
+    case climate::CLIMATE_MODE_FAN_ONLY:
+      return DaikinClimateMode::Fan;
     default:
-      break;  // Don't change mode status.
+      return DaikinClimateMode::Disabled;
   }
 }
 
-climate::ClimateAction DaikinS21Climate::daikin_state_to_climate_action() {
+const std::string DaikinS21Climate::d2e_fan_mode(DaikinFanMode mode) {
+  switch (mode) {
+    case DaikinFanMode::Speed1:
+      return "1";
+    case DaikinFanMode::Speed2:
+      return "2";
+    case DaikinFanMode::Speed3:
+      return "3";
+    case DaikinFanMode::Speed4:
+      return "4";
+    case DaikinFanMode::Speed5:
+      return "5";
+    case DaikinFanMode::Auto:
+    default:
+      return "Auto";
+  }
+}
+
+DaikinFanMode DaikinS21Climate::e2d_fan_mode(std::string mode) {
+  if (mode == "Auto")
+    return DaikinFanMode::Auto;
+  if (mode == "1")
+    return DaikinFanMode::Speed1;
+  if (mode == "2")
+    return DaikinFanMode::Speed2;
+  if (mode == "3")
+    return DaikinFanMode::Speed3;
+  if (mode == "4")
+    return DaikinFanMode::Speed4;
+  if (mode == "5")
+    return DaikinFanMode::Speed5;
+  return DaikinFanMode::Auto;
+}
+
+climate::ClimateAction DaikinS21Climate::d2e_climate_action() {
   if (this->s21->is_idle()) {
     return climate::CLIMATE_ACTION_IDLE;
   }
@@ -130,31 +153,72 @@ climate::ClimateAction DaikinS21Climate::daikin_state_to_climate_action() {
   }
 }
 
-void DaikinS21Climate::set_swing_mode(bool swing_v, bool swing_h) {
-  if (swing_v && swing_h) {
-    this->swing_mode = climate::CLIMATE_SWING_BOTH;
-  } else if (swing_v) {
-    this->swing_mode = climate::CLIMATE_SWING_VERTICAL;
-  } else if (swing_h) {
-    this->swing_mode = climate::CLIMATE_SWING_HORIZONTAL;
-  } else {
-    this->swing_mode = climate::CLIMATE_SWING_OFF;
-  }
+climate::ClimateSwingMode DaikinS21Climate::d2e_swing_mode(bool swing_v,
+                                                           bool swing_h) {
+  if (swing_v && swing_h)
+    return climate::CLIMATE_SWING_BOTH;
+  if (swing_v)
+    return climate::CLIMATE_SWING_VERTICAL;
+  if (swing_h)
+    return climate::CLIMATE_SWING_HORIZONTAL;
+  return climate::CLIMATE_SWING_OFF;
+}
+
+bool DaikinS21Climate::e2d_swing_h(climate::ClimateSwingMode mode) {
+  return mode == climate::CLIMATE_SWING_BOTH ||
+         mode == climate::CLIMATE_SWING_HORIZONTAL;
+}
+
+bool DaikinS21Climate::e2d_swing_v(climate::ClimateSwingMode mode) {
+  return mode == climate::CLIMATE_SWING_BOTH ||
+         mode == climate::CLIMATE_SWING_VERTICAL;
 }
 
 void DaikinS21Climate::update() {
   if (this->s21->is_ready()) {
-    this->set_daikin_climate_mode(this->s21->get_climate_mode());
-    this->set_daikin_fan_mode(this->s21->get_fan_mode());
-    this->set_swing_mode(this->s21->get_swing_v(), this->s21->get_swing_h());
-    this->action = this->daikin_state_to_climate_action();
+    this->mode = this->d2e_climate_mode(this->s21->get_climate_mode());
+    this->set_custom_fan_mode_(this->d2e_fan_mode(this->s21->get_fan_mode()));
+    this->swing_mode = this->d2e_swing_mode(this->s21->get_swing_v(),
+                                            this->s21->get_swing_h());
+    this->action = this->d2e_climate_action();
     this->current_temperature = this->s21->get_temp_inside();
     this->target_temperature = this->s21->get_setpoint();
     this->publish_state();
   }
 }
 
-void DaikinS21Climate::control(const climate::ClimateCall &call) {}
+void DaikinS21Climate::control(const climate::ClimateCall &call) {
+  float setpoint = this->target_temperature;
+  climate::ClimateMode climate_mode = this->mode;
+  std::string fan_mode = this->custom_fan_mode.value_or("Auto");
+  bool set_basic = false;
+
+  if (call.get_mode().has_value()) {
+    climate_mode = call.get_mode().value();
+    set_basic = true;
+  }
+  if (call.get_target_temperature().has_value()) {
+    setpoint = call.get_target_temperature().value();
+    set_basic = true;
+  }
+  if (call.get_custom_fan_mode().has_value()) {
+    fan_mode = call.get_custom_fan_mode().value();
+    set_basic = true;
+  }
+
+  if (set_basic) {
+    this->s21->set_daikin_climate_settings(
+        climate_mode != climate::CLIMATE_MODE_OFF,
+        this->e2d_climate_mode(climate_mode), setpoint,
+        this->e2d_fan_mode(fan_mode));
+  }
+
+  if (call.get_swing_mode().has_value()) {
+    climate::ClimateSwingMode swing_mode = call.get_swing_mode().value();
+    this->s21->set_swing_settings(this->e2d_swing_v(swing_mode),
+                                  this->e2d_swing_h(swing_mode));
+  }
+}
 
 }  // namespace daikin_s21
 }  // namespace esphome

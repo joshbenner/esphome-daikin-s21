@@ -85,6 +85,10 @@ int16_t temp_bytes_to_c10(std::vector<uint8_t> &bytes) {
   return temp_bytes_to_c10(&bytes[0]);
 }
 
+uint8_t c10_to_setpoint_byte(int16_t setpoint) {
+  return (setpoint + 3) / 5 + 28;
+}
+
 void DaikinS21::set_uarts(uart::UARTComponent *tx, uart::UARTComponent *rx) {
   this->tx_uart = tx;
   this->rx_uart = rx;
@@ -233,10 +237,10 @@ bool DaikinS21::read_frame(std::vector<uint8_t> &payload) {
   return true;
 }
 
-void DaikinS21::write_frame(std::vector<uint8_t> payload) {
+void DaikinS21::write_frame(std::vector<uint8_t> frame) {
   this->tx_uart->write_byte(STX);
-  this->tx_uart->write_array(payload);
-  this->tx_uart->write_byte(s21_checksum(&payload[0], payload.size()));
+  this->tx_uart->write_array(frame);
+  this->tx_uart->write_byte(s21_checksum(&frame[0], frame.size()));
   this->tx_uart->write_byte(ETX);
   this->tx_uart->flush();
 }
@@ -390,6 +394,67 @@ void DaikinS21::dump_state() {
            c10_f(this->temp_coil));
 
   ESP_LOGD(TAG, "** END STATE *****************************");
+}
+
+void DaikinS21::set_daikin_climate_settings(bool power_on,
+                                            DaikinClimateMode mode,
+                                            float setpoint,
+                                            DaikinFanMode fan_mode) {
+  // clang-format off
+  std::vector<uint8_t> cmd = {
+    (uint8_t)(power_on ? '1' : '0'),
+    (uint8_t) mode,
+    c10_to_setpoint_byte(lroundf(round(setpoint * 2) / 2 * 10.0)),
+    (uint8_t) fan_mode
+  };
+  // clang-format on
+  ESP_LOGD(TAG, "Sending basic climate CMD (D1): %s", str_repr(cmd).c_str());
+  if (!this->send_cmd({'D', '1'}, cmd)) {
+    ESP_LOGW(TAG, "Failed basic climate CMD");
+  }
+}
+
+void DaikinS21::set_swing_settings(bool swing_v, bool swing_h) {
+  std::vector<uint8_t> cmd = {
+    (uint8_t) ('0' + (swing_h ? 2 : 0) + (swing_v ? 1 : 0) +
+               (swing_h && swing_v ? 4 : 0)),
+    (uint8_t)(swing_v || swing_h ? '?' : '0'),
+    '0', '0'
+  };
+  ESP_LOGD(TAG, "Sending swing CMD (D5): %s", str_repr(cmd).c_str());
+  if (!this->send_cmd({'D', '5'}, cmd)) {
+    ESP_LOGW(TAG, "Failed swing CMD");
+  }
+}
+
+bool DaikinS21::send_cmd(std::vector<uint8_t> code,
+                         std::vector<uint8_t> payload) {
+  std::vector<uint8_t> frame;
+  uint8_t byte;
+
+  for (auto b : code) {
+    frame.push_back(b);
+  }
+  for (auto b : payload) {
+    frame.push_back(b);
+  }
+
+  this->write_frame(frame);
+  if (!this->rx_uart->read_byte(&byte)) {
+    ESP_LOGW(TAG, "Timeout waiting for ACK to %s", str_repr(frame).c_str());
+    return false;
+  }
+  if (byte == NAK) {
+    ESP_LOGW(TAG, "Got NAK for frame: %s", str_repr(frame).c_str());
+    return false;
+  }
+  if (byte != ACK) {
+    ESP_LOGW(TAG, "Unexpected byte waiting for ACK: %s",
+             str_repr(&byte, 1).c_str());
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace daikin_s21

@@ -38,15 +38,13 @@ class DaikinS21 : public PollingComponent {
   bool is_ready() { return this->ready; }
 
   bool is_power_on() { return this->power_on; }
-
   DaikinClimateMode get_climate_mode() { return this->mode; }
-  void set_climate_mode(DaikinClimateMode mode);
-
   DaikinFanMode get_fan_mode() { return this->fan; }
-  void set_fan_mode(DaikinFanMode mode);
-
-  int16_t get_setpoint() { return this->setpoint / 10.0; }
-  void set_setpoint(uint16_t temp);
+  float get_setpoint() { return this->setpoint / 10.0; }
+  void set_daikin_climate_settings(bool power_on, DaikinClimateMode mode,
+                                   float setpoint, DaikinFanMode fan_mode);
+  void set_swing_settings(bool swing_v, bool swing_h);
+  bool send_cmd(std::vector<uint8_t> code, std::vector<uint8_t> payload);
 
   float get_temp_inside() { return this->temp_inside / 10.0; }
   float get_temp_outside() { return this->temp_outside / 10.0; }
