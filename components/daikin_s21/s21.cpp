@@ -340,21 +340,23 @@ bool DaikinS21::parse_response(std::vector<uint8_t> rcode,
   return false;
 }
 
-void DaikinS21::run_queries(std::vector<std::string> queries) {
-  std::vector<uint8_t> code;
+bool DaikinS21::run_queries(std::vector<std::string> queries) {
+  bool success = true;
 
   for (auto q : queries) {
-    code.clear();
-    for (auto i = 0; i < q.length(); i++) {
-      code.push_back(q[i]);
-    }
-    this->s21_query(code);
+    std::vector<uint8_t> code(q.begin(), q.end());
+    success = this->s21_query(code) && success;
   }
+
+  return success;  // True if all queries successful
 }
 
 void DaikinS21::update() {
   std::vector<std::string> queries = {"F1", "F5", "RH", "RI", "Ra", "RL", "Rd"};
-  this->run_queries(queries);
+  if (this->run_queries(queries) && !this->ready) {
+    ESP_LOGI(TAG, "Daikin S21 Ready");
+    this->ready = true;
+  }
 
 #ifdef S21_EXPERIMENTS
   this->dump_state();

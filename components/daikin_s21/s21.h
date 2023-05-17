@@ -35,6 +35,7 @@ class DaikinS21 : public PollingComponent {
   void update() override;
   void dump_config() override;
   void set_uarts(uart::UARTComponent *tx, uart::UARTComponent *rx);
+  bool is_ready() { return this->ready; }
 
   bool is_power_on() { return this->power_on; }
 
@@ -60,12 +61,13 @@ class DaikinS21 : public PollingComponent {
   void write_frame(std::vector<uint8_t> payload);
   bool s21_query(std::vector<uint8_t> code);
   bool parse_response(std::vector<uint8_t> rcode, std::vector<uint8_t> payload);
-  void run_queries(std::vector<std::string> queries);
+  bool run_queries(std::vector<std::string> queries);
   void dump_state();
   void check_uart_settings();
 
   uart::UARTComponent *tx_uart{nullptr};
   uart::UARTComponent *rx_uart{nullptr};
+  bool ready = false;
 
   bool power_on = false;
   DaikinClimateMode mode = DaikinClimateMode::Disabled;

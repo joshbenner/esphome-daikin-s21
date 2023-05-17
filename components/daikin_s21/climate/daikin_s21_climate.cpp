@@ -70,9 +70,9 @@ void DaikinS21Climate::set_daikin_climate_mode(DaikinClimateMode mode) {
     case DaikinClimateMode::Fan:
       this->mode = climate::CLIMATE_MODE_FAN_ONLY;
       break;
-    // case DaikinClimateMode::Disabled:
-    // default:
-      // Do nothing
+    case DaikinClimateMode::Disabled:
+    default:
+      break;  // Do nothing
   }
 }
 
@@ -96,8 +96,8 @@ void DaikinS21Climate::set_daikin_fan_mode(DaikinFanMode mode) {
     case DaikinFanMode::Speed5:
       this->set_custom_fan_mode_("5");
       break;
-    // default:
-      // Do nothing
+    default:
+      break;  // Don't change mode status.
   }
 }
 
@@ -143,13 +143,15 @@ void DaikinS21Climate::set_swing_mode(bool swing_v, bool swing_h) {
 }
 
 void DaikinS21Climate::update() {
-  this->set_daikin_climate_mode(this->s21->get_climate_mode());
-  this->set_daikin_fan_mode(this->s21->get_fan_mode());
-  this->set_swing_mode(this->s21->get_swing_v(), this->s21->get_swing_h());
-  this->action = this->daikin_state_to_climate_action();
-  this->current_temperature = this->s21->get_temp_inside();
-  this->target_temperature = this->s21->get_setpoint();
-  this->publish_state();
+  if (this->s21->is_ready()) {
+    this->set_daikin_climate_mode(this->s21->get_climate_mode());
+    this->set_daikin_fan_mode(this->s21->get_fan_mode());
+    this->set_swing_mode(this->s21->get_swing_v(), this->s21->get_swing_h());
+    this->action = this->daikin_state_to_climate_action();
+    this->current_temperature = this->s21->get_temp_inside();
+    this->target_temperature = this->s21->get_setpoint();
+    this->publish_state();
+  }
 }
 
 void DaikinS21Climate::control(const climate::ClimateCall &call) {}
