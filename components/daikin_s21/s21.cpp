@@ -355,9 +355,9 @@ void DaikinS21::run_queries(std::vector<std::string> queries) {
 void DaikinS21::update() {
   std::vector<std::string> queries = {"F1", "F5", "RH", "RI", "Ra", "RL", "Rd"};
   this->run_queries(queries);
-  this->dump_state();
 
 #ifdef S21_EXPERIMENTS
+  this->dump_state();
   ESP_LOGD(TAG, "** UNKNOWN QUERIES **");
   // auto experiments = {"F2", "F3", "F4", "F8", "F9", "F0", "FA", "FB", "FC",
   //                     "FD", "FE", "FF", "FG", "FH", "FI", "FJ", "FK", "FL",

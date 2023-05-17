@@ -44,12 +44,12 @@ class DaikinS21 : public PollingComponent {
   DaikinFanMode get_fan_mode() { return this->fan; }
   void set_fan_mode(DaikinFanMode mode);
 
-  int16_t get_setpoint() { return this->setpoint; }
+  int16_t get_setpoint() { return this->setpoint / 10.0; }
   void set_setpoint(uint16_t temp);
 
-  int16_t get_temp_inside() { return this->temp_inside; }
-  int16_t get_temp_outside() { return this->temp_outside; }
-  int16_t get_temp_coil() { return this->temp_coil; }
+  float get_temp_inside() { return this->temp_inside / 10.0; }
+  float get_temp_outside() { return this->temp_outside / 10.0; }
+  float get_temp_coil() { return this->temp_coil / 10.0; }
   uint16_t get_fan_rpm() { return this->fan_rpm; }
   bool is_idle() { return this->idle; }
   bool get_swing_h() { return this->swing_h; }

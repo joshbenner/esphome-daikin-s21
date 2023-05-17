@@ -147,6 +147,8 @@ void DaikinS21Climate::update() {
   this->set_daikin_fan_mode(this->s21->get_fan_mode());
   this->set_swing_mode(this->s21->get_swing_v(), this->s21->get_swing_h());
   this->action = this->daikin_state_to_climate_action();
+  this->current_temperature = this->s21->get_temp_inside();
+  this->target_temperature = this->s21->get_setpoint();
   this->publish_state();
 }
 

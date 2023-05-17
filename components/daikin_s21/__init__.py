@@ -23,7 +23,7 @@ CONFIG_SCHEMA = (cv.Schema(
             cv.Required(CONF_RX_UART): cv.use_id(UARTComponent),
         }
     )
-    .extend(cv.polling_component_schema("5s"))
+    .extend(cv.polling_component_schema("2s"))
 )
 
 
