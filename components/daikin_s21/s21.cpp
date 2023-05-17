@@ -18,38 +18,38 @@ namespace daikin_s21 {
 
 static const char *const TAG = "daikin_s21";
 
-std::string daikin_climate_mode_to_string(DaikinClimateModes mode) {
+std::string daikin_climate_mode_to_string(DaikinClimateMode mode) {
   switch (mode) {
-    case DaikinClimateModes::Disabled:
+    case DaikinClimateMode::Disabled:
       return "Disabled";
-    case DaikinClimateModes::Auto:
+    case DaikinClimateMode::Auto:
       return "Auto";
-    case DaikinClimateModes::Dry:
+    case DaikinClimateMode::Dry:
       return "Dry";
-    case DaikinClimateModes::Cool:
+    case DaikinClimateMode::Cool:
       return "Cool";
-    case DaikinClimateModes::Heat:
+    case DaikinClimateMode::Heat:
       return "Heat";
-    case DaikinClimateModes::Fan:
+    case DaikinClimateMode::Fan:
       return "Fan";
     default:
       return "UNKNOWN";
   }
 }
 
-std::string daikin_fan_mode_to_string(DaikinFanModes mode) {
+std::string daikin_fan_mode_to_string(DaikinFanMode mode) {
   switch (mode) {
-    case DaikinFanModes::Auto:
+    case DaikinFanMode::Auto:
       return "Auto";
-    case DaikinFanModes::Speed1:
+    case DaikinFanMode::Speed1:
       return "1";
-    case DaikinFanModes::Speed2:
+    case DaikinFanMode::Speed2:
       return "2";
-    case DaikinFanModes::Speed3:
+    case DaikinFanMode::Speed3:
       return "3";
-    case DaikinFanModes::Speed4:
+    case DaikinFanMode::Speed4:
       return "4";
-    case DaikinFanModes::Speed5:
+    case DaikinFanMode::Speed5:
       return "5";
     default:
       return "UNKNOWN";
@@ -297,9 +297,9 @@ bool DaikinS21::parse_response(std::vector<uint8_t> rcode,
       switch (rcode[1]) {
         case '1':  // F1 -> Basic State
           this->power_on = (payload[0] == '1');
-          this->mode = (DaikinClimateModes) payload[1];
+          this->mode = (DaikinClimateMode) payload[1];
           this->setpoint = ((payload[2] - 28) * 5);  // Celsius * 10
-          this->fan = (DaikinFanModes) payload[3];
+          this->fan = (DaikinFanMode) payload[3];
           return true;
         case '5':  // F5 -> G5 -- Swing state
           this->swing_v = payload[0] & 1;

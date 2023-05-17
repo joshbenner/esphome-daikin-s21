@@ -6,13 +6,10 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import climate
 from esphome.const import CONF_ID
+from .. import daikin_s21_ns, DaikinS21
 
-DEPENDENCIES = ["uart"]
+CONF_S21_ID = "s21_id"
 
-CONF_TX_UART = "tx_uart"
-CONF_RX_UART = "rx_uart"
-
-daikin_s21_ns = cg.esphome_ns.namespace("daikin_s21")
 DaikinS21Climate = daikin_s21_ns.class_("DaikinS21Climate", climate.Climate,
                                         cg.PollingComponent)
 uart_ns = cg.esphome_ns.namespace("uart")
@@ -22,8 +19,7 @@ CONFIG_SCHEMA = cv.All(
     climate.CLIMATE_SCHEMA.extend(
         {
             cv.GenerateID(): cv.declare_id(DaikinS21Climate),
-            cv.Required(CONF_TX_UART): cv.use_id(UARTComponent),
-            cv.Required(CONF_RX_UART): cv.use_id(UARTComponent),
+            cv.GenerateID(CONF_S21_ID): cv.use_id(DaikinS21),
         }
     )
     .extend(cv.polling_component_schema("5s"))
@@ -35,6 +31,5 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await climate.register_climate(var, config)
-    tx_uart = await cg.get_variable(config[CONF_TX_UART])
-    rx_uart = await cg.get_variable(config[CONF_RX_UART])
-    cg.add(var.set_uarts(tx_uart, rx_uart))
+    s21_var = await cg.get_variable(config[CONF_S21_ID])
+    cg.add(var.set_s21(s21_var))
