@@ -10,8 +10,7 @@ namespace esphome {
 namespace daikin_s21 {
 
 static std::map<uint8_t, std::string> FanModes = {
-  {'A', "Auto"}, {'3', "1"}, {'4', "2"}, {'5', "3"}, {'6', "4"}, {'7', "5"}
-};
+    {'A', "Auto"}, {'3', "1"}, {'4', "2"}, {'5', "3"}, {'6', "4"}, {'7', "5"}};
 
 // clang-format off
 static const climate::ClimateMode OpModes[] = {
@@ -25,12 +24,13 @@ static const climate::ClimateMode OpModes[] = {
 };
 // clang-format on
 
-class DaikinS21Climate : public climate::Climate, public PollingComponent {
+class DaikinS21Climate : public climate::Climate,
+                         public PollingComponent,
+                         public DaikinS21Client {
  public:
   void update() override;
   void dump_config() override;
   void control(const climate::ClimateCall &call) override;
-  void set_s21(DaikinS21 *s21) { this->s21 = s21; }
 
   climate::ClimateAction d2e_climate_action();
 
@@ -44,8 +44,6 @@ class DaikinS21Climate : public climate::Climate, public PollingComponent {
 
  protected:
   climate::ClimateTraits traits() override;
-
-  DaikinS21 *s21;
 };
 
 }  // namespace daikin_s21

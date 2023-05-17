@@ -6,12 +6,16 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import climate
 from esphome.const import CONF_ID
-from .. import daikin_s21_ns, DaikinS21
+from .. import (
+    daikin_s21_ns,
+    CONF_S21_ID,
+    S21_CLIENT_SCHEMA,
+    DaikinS21Client,
+)
 
-CONF_S21_ID = "s21_id"
-
-DaikinS21Climate = daikin_s21_ns.class_("DaikinS21Climate", climate.Climate,
-                                        cg.PollingComponent)
+DaikinS21Climate = daikin_s21_ns.class_(
+    "DaikinS21Climate", climate.Climate, cg.PollingComponent, DaikinS21Client
+)
 uart_ns = cg.esphome_ns.namespace("uart")
 UARTComponent = uart_ns.class_("UARTComponent")
 
@@ -19,10 +23,10 @@ CONFIG_SCHEMA = cv.All(
     climate.CLIMATE_SCHEMA.extend(
         {
             cv.GenerateID(): cv.declare_id(DaikinS21Climate),
-            cv.GenerateID(CONF_S21_ID): cv.use_id(DaikinS21),
         }
     )
     .extend(cv.polling_component_schema("5s"))
+    .extend(S21_CLIENT_SCHEMA)
 )
 
 

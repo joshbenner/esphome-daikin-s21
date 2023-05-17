@@ -10,20 +10,26 @@ DEPENDENCIES = ["uart"]
 
 CONF_TX_UART = "tx_uart"
 CONF_RX_UART = "rx_uart"
+CONF_S21_ID = "s21_id"
 
 daikin_s21_ns = cg.esphome_ns.namespace("daikin_s21")
 DaikinS21 = daikin_s21_ns.class_("DaikinS21", cg.PollingComponent)
+DaikinS21Client = daikin_s21_ns.class_("DaikinS21Client")
 uart_ns = cg.esphome_ns.namespace("uart")
 UARTComponent = uart_ns.class_("UARTComponent")
 
-CONFIG_SCHEMA = (cv.Schema(
-        {
-            cv.GenerateID(): cv.declare_id(DaikinS21),
-            cv.Required(CONF_TX_UART): cv.use_id(UARTComponent),
-            cv.Required(CONF_RX_UART): cv.use_id(UARTComponent),
-        }
-    )
-    .extend(cv.polling_component_schema("2s"))
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.declare_id(DaikinS21),
+        cv.Required(CONF_TX_UART): cv.use_id(UARTComponent),
+        cv.Required(CONF_RX_UART): cv.use_id(UARTComponent),
+    }
+).extend(cv.polling_component_schema("2s"))
+
+S21_CLIENT_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(CONF_S21_ID): cv.use_id(DaikinS21),
+    }
 )
 
 

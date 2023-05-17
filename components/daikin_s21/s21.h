@@ -80,5 +80,13 @@ class DaikinS21 : public PollingComponent {
   bool idle = true;
 };
 
+class DaikinS21Client {
+ public:
+  void set_s21(DaikinS21 *s21) { this->s21 = s21; }
+
+ protected:
+  DaikinS21 *s21;
+};
+
 }  // namespace daikin_s21
 }  // namespace esphome
