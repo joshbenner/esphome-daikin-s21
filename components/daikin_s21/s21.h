@@ -52,6 +52,8 @@ class DaikinS21 : public PollingComponent {
   int16_t get_temp_coil() { return this->temp_coil; }
   uint16_t get_fan_rpm() { return this->fan_rpm; }
   bool is_idle() { return this->idle; }
+  bool get_swing_h() { return this->swing_h; }
+  bool get_swing_v() { return this->swing_v; }
 
  protected:
   bool read_frame(std::vector<uint8_t> &payload);

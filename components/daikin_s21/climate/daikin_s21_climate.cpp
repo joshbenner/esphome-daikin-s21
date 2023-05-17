@@ -2,7 +2,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
-#include "climate.h"
+#include "daikin_s21_climate.h"
 
 using namespace esphome;
 
@@ -56,7 +56,7 @@ climate::ClimateTraits DaikinS21Climate::traits() {
 void DaikinS21Climate::set_daikin_climate_mode(DaikinClimateMode mode) {
   switch (mode) {
     case DaikinClimateMode::Auto:
-      this->mode = climate::CLIMATE_MODE_AUTO;
+      this->mode = climate::CLIMATE_MODE_HEAT_COOL;
       break;
     case DaikinClimateMode::Cool:
       this->mode = climate::CLIMATE_MODE_COOL;
@@ -101,8 +101,53 @@ void DaikinS21Climate::set_daikin_fan_mode(DaikinFanMode mode) {
   }
 }
 
+climate::ClimateAction DaikinS21Climate::daikin_state_to_climate_action() {
+  if (this->s21->is_idle()) {
+    return climate::CLIMATE_ACTION_IDLE;
+  }
+  switch (this->s21->get_climate_mode()) {
+    uint16_t setpoint, temp_inside;
+
+    case DaikinClimateMode::Auto:
+      setpoint = this->s21->get_setpoint();
+      temp_inside = this->s21->get_temp_inside();
+      if (setpoint > temp_inside) {
+        return climate::CLIMATE_ACTION_HEATING;
+      } else if (setpoint < temp_inside) {
+        return climate::CLIMATE_ACTION_COOLING;
+      }
+      return climate::CLIMATE_ACTION_IDLE;
+    case DaikinClimateMode::Cool:
+      return climate::CLIMATE_ACTION_COOLING;
+    case DaikinClimateMode::Heat:
+      return climate::CLIMATE_ACTION_HEATING;
+    case DaikinClimateMode::Dry:
+      return climate::CLIMATE_ACTION_DRYING;
+    case DaikinClimateMode::Fan:
+      return climate::CLIMATE_ACTION_FAN;
+    default:
+      return climate::CLIMATE_ACTION_OFF;
+  }
+}
+
+void DaikinS21Climate::set_swing_mode(bool swing_v, bool swing_h) {
+  if (swing_v && swing_h) {
+    this->swing_mode = climate::CLIMATE_SWING_BOTH;
+  } else if (swing_v) {
+    this->swing_mode = climate::CLIMATE_SWING_VERTICAL;
+  } else if (swing_h) {
+    this->swing_mode = climate::CLIMATE_SWING_HORIZONTAL;
+  } else {
+    this->swing_mode = climate::CLIMATE_SWING_OFF;
+  }
+}
+
 void DaikinS21Climate::update() {
   this->set_daikin_climate_mode(this->s21->get_climate_mode());
+  this->set_daikin_fan_mode(this->s21->get_fan_mode());
+  this->set_swing_mode(this->s21->get_swing_v(), this->s21->get_swing_h());
+  this->action = this->daikin_state_to_climate_action();
+  this->publish_state();
 }
 
 void DaikinS21Climate::control(const climate::ClimateCall &call) {}

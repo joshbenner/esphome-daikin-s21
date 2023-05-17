@@ -32,8 +32,10 @@ class DaikinS21Climate : public climate::Climate, public PollingComponent {
   void control(const climate::ClimateCall &call) override;
   void set_s21(DaikinS21 *s21) { this->s21 = s21; }
 
+  climate::ClimateAction daikin_state_to_climate_action();
   void set_daikin_climate_mode(DaikinClimateMode mode);
   void set_daikin_fan_mode(DaikinFanMode mode);
+  void set_swing_mode(bool swing_v, bool swing_h);
 
  protected:
   climate::ClimateTraits traits() override;
