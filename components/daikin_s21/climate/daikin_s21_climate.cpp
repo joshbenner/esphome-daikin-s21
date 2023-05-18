@@ -37,11 +37,7 @@ climate::ClimateTraits DaikinS21Climate::traits() {
        climate::CLIMATE_MODE_COOL, climate::CLIMATE_MODE_HEAT,
        climate::CLIMATE_MODE_FAN_ONLY, climate::CLIMATE_MODE_DRY});
 
-  std::set<std::string> fan_mode_names;
-  for (auto m : FanModes) {
-    fan_mode_names.insert(m.second);
-  }
-  traits.set_supported_custom_fan_modes(fan_mode_names);
+  traits.set_supported_custom_fan_modes({"Auto", "1", "2", "3", "4", "5"});
 
   traits.set_supported_swing_modes({
       climate::CLIMATE_SWING_OFF,

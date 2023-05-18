@@ -9,9 +9,6 @@
 namespace esphome {
 namespace daikin_s21 {
 
-static std::map<uint8_t, std::string> FanModes = {
-    {'A', "Auto"}, {'3', "1"}, {'4', "2"}, {'5', "3"}, {'6', "4"}, {'7', "5"}};
-
 // clang-format off
 static const climate::ClimateMode OpModes[] = {
     climate::CLIMATE_MODE_OFF,  // Unused
