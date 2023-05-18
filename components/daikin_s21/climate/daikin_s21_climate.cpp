@@ -37,7 +37,7 @@ climate::ClimateTraits DaikinS21Climate::traits() {
        climate::CLIMATE_MODE_COOL, climate::CLIMATE_MODE_HEAT,
        climate::CLIMATE_MODE_FAN_ONLY, climate::CLIMATE_MODE_DRY});
 
-  traits.set_supported_custom_fan_modes({"Auto", "1", "2", "3", "4", "5"});
+  traits.set_supported_custom_fan_modes({"Automatic", "1", "2", "3", "4", "5"});
 
   traits.set_supported_swing_modes({
       climate::CLIMATE_SWING_OFF,
@@ -100,12 +100,12 @@ const std::string DaikinS21Climate::d2e_fan_mode(DaikinFanMode mode) {
       return "5";
     case DaikinFanMode::Auto:
     default:
-      return "Auto";
+      return "Automatic";
   }
 }
 
 DaikinFanMode DaikinS21Climate::e2d_fan_mode(std::string mode) {
-  if (mode == "Auto")
+  if (mode == "Automatic")
     return DaikinFanMode::Auto;
   if (mode == "1")
     return DaikinFanMode::Speed1;
@@ -186,7 +186,7 @@ void DaikinS21Climate::update() {
 void DaikinS21Climate::control(const climate::ClimateCall &call) {
   float setpoint = this->target_temperature;
   climate::ClimateMode climate_mode = this->mode;
-  std::string fan_mode = this->custom_fan_mode.value_or("Auto");
+  std::string fan_mode = this->custom_fan_mode.value_or("Automatic");
   bool set_basic = false;
 
   if (call.get_mode().has_value()) {
