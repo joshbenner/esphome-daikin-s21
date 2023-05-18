@@ -62,6 +62,7 @@ logger:
 
 external_components:
   - source: github://joshbenner/esphome-daikin-s21@main
+    components: [ daikin_s21 ]
 
 uart:
   - id: s21_uart
