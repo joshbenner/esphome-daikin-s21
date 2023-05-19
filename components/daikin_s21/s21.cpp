@@ -289,8 +289,10 @@ bool DaikinS21::s21_query(std::vector<uint8_t> code) {
 
 bool DaikinS21::parse_response(std::vector<uint8_t> rcode,
                                std::vector<uint8_t> payload) {
-  // ESP_LOGD(TAG, "S21: %s -> %s (%d)", str_repr(rcode).c_str(),
-  //          str_repr(payload).c_str(), payload.size());
+  if (this->debug_protocol) {
+    ESP_LOGD(TAG, "S21: %s -> %s (%d)", str_repr(rcode).c_str(),
+             str_repr(payload).c_str(), payload.size());
+  }
 
   switch (rcode[0]) {
     case 'G':      // F -> G
@@ -357,9 +359,11 @@ void DaikinS21::update() {
     ESP_LOGI(TAG, "Daikin S21 Ready");
     this->ready = true;
   }
+  if (this->debug_protocol) {
+    this->dump_state();
+  }
 
 #ifdef S21_EXPERIMENTS
-  this->dump_state();
   ESP_LOGD(TAG, "** UNKNOWN QUERIES **");
   // auto experiments = {"F2", "F3", "F4", "F8", "F9", "F0", "FA", "FB", "FC",
   //                     "FD", "FE", "FF", "FG", "FH", "FI", "FJ", "FK", "FL",
@@ -375,7 +379,7 @@ void DaikinS21::update() {
 void DaikinS21::dump_state() {
   ESP_LOGD(TAG, "** BEGIN STATE *****************************");
 
-  ESP_LOGD(TAG, "Current S21 State:");
+  ESP_LOGD(TAG, "  Power: %s", ONOFF(this->power_on));
   ESP_LOGD(TAG, "   Mode: %s (%s)",
            daikin_climate_mode_to_string(this->mode).c_str(),
            this->idle ? "idle" : "active");
@@ -384,8 +388,8 @@ void DaikinS21::dump_state() {
   ESP_LOGD(TAG, " Target: %.1f C (%.1f F)", degc, degf);
   ESP_LOGD(TAG, "    Fan: %s (%d rpm)",
            daikin_fan_mode_to_string(this->fan).c_str(), this->fan_rpm);
-  ESP_LOGD(TAG, "  Swing: H:%s V:%s", this->swing_h ? "y" : "n",
-           this->swing_v ? "y" : "n");
+  ESP_LOGD(TAG, "  Swing: H:%s V:%s", YESNO(this->swing_h),
+           YESNO(this->swing_h));
   ESP_LOGD(TAG, " Inside: %.1f C (%.1f F)", c10_c(this->temp_inside),
            c10_f(this->temp_inside));
   ESP_LOGD(TAG, "Outside: %.1f C (%.1f F)", c10_c(this->temp_outside),
@@ -416,11 +420,9 @@ void DaikinS21::set_daikin_climate_settings(bool power_on,
 
 void DaikinS21::set_swing_settings(bool swing_v, bool swing_h) {
   std::vector<uint8_t> cmd = {
-    (uint8_t) ('0' + (swing_h ? 2 : 0) + (swing_v ? 1 : 0) +
-               (swing_h && swing_v ? 4 : 0)),
-    (uint8_t)(swing_v || swing_h ? '?' : '0'),
-    '0', '0'
-  };
+      (uint8_t) ('0' + (swing_h ? 2 : 0) + (swing_v ? 1 : 0) +
+                 (swing_h && swing_v ? 4 : 0)),
+      (uint8_t) (swing_v || swing_h ? '?' : '0'), '0', '0'};
   ESP_LOGD(TAG, "Sending swing CMD (D5): %s", str_repr(cmd).c_str());
   if (!this->send_cmd({'D', '5'}, cmd)) {
     ESP_LOGW(TAG, "Failed swing CMD");

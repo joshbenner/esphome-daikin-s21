@@ -35,6 +35,7 @@ class DaikinS21 : public PollingComponent {
   void update() override;
   void dump_config() override;
   void set_uarts(uart::UARTComponent *tx, uart::UARTComponent *rx);
+  void set_debug_protocol(bool set) { this->debug_protocol = set; }
   bool is_ready() { return this->ready; }
 
   bool is_power_on() { return this->power_on; }
@@ -66,6 +67,7 @@ class DaikinS21 : public PollingComponent {
   uart::UARTComponent *tx_uart{nullptr};
   uart::UARTComponent *rx_uart{nullptr};
   bool ready = false;
+  bool debug_protocol = false;
 
   bool power_on = false;
   DaikinClimateMode mode = DaikinClimateMode::Disabled;
