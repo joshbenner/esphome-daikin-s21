@@ -174,13 +174,14 @@ void DaikinS21Climate::update() {
   if (this->s21->is_ready()) {
     if (this->s21->is_power_on()) {
       this->mode = this->d2e_climate_mode(this->s21->get_climate_mode());
+      this->action = this->d2e_climate_action();
     } else {
       this->mode = climate::CLIMATE_MODE_OFF;
+      this->action = climate::CLIMATE_ACTION_OFF;
     }
     this->set_custom_fan_mode_(this->d2e_fan_mode(this->s21->get_fan_mode()));
     this->swing_mode = this->d2e_swing_mode(this->s21->get_swing_v(),
                                             this->s21->get_swing_h());
-    this->action = this->d2e_climate_action();
     this->current_temperature = this->s21->get_temp_inside();
     this->target_temperature = this->s21->get_setpoint();
     this->publish_state();
