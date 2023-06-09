@@ -83,6 +83,8 @@ climate:
     platform: daikin_s21
     visual:
       temperature_step: 1.0
+    # Optional HA sensor used to alter setpoint.
+    room_temperature_sensor: room_temp  # See homeassistant sensor below
 
 # Optional additional sensors.
 sensor:
@@ -95,6 +97,10 @@ sensor:
       name: My Daikin Coil Temperature
     fan_speed:
       name: My Daikin Fan Speed
+  - platform: homeassistant
+    id: room_temp
+    entity_id: sensor.office_temperature
+    unit_of_measurement: °F
 ```
 
 Here is an example of how daikin_s21 can be used with one inverted UART pin:

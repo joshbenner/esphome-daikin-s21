@@ -1,7 +1,7 @@
 #include "esphome/core/defines.h"
-#include "esphome/core/component.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
+#include "esphome/core/helpers.h"
 #include "daikin_s21_climate.h"
 
 using namespace esphome;
@@ -15,9 +15,25 @@ namespace daikin_s21 {
 
 static const char *const TAG = "daikin_s21.climate";
 
+void DaikinS21Climate::setup() {
+  uint32_t h = this->get_object_id_hash();
+  auto_setpoint_pref = global_preferences->make_preference<int16_t>(h + 1);
+  cool_setpoint_pref = global_preferences->make_preference<int16_t>(h + 2);
+  heat_setpoint_pref = global_preferences->make_preference<int16_t>(h + 3);
+}
+
 void DaikinS21Climate::dump_config() {
   ESP_LOGCONFIG(TAG, "DaikinS21Climate:");
   ESP_LOGCONFIG(TAG, "  Update interval: %u", this->get_update_interval());
+  if (this->room_sensor_ != nullptr) {
+    if (!this->room_sensor_unit_is_valid()) {
+      ESP_LOGCONFIG(TAG, "  ROOM SENSOR: INVALID UNIT '%s' (must be °C or °F)",
+                    this->room_sensor_->get_unit_of_measurement().c_str());
+    } else {
+      ESP_LOGCONFIG(TAG, "  Room sensor: %s",
+                    this->room_sensor_->get_name().c_str());
+    }
+  }
   this->dump_traits_(TAG);
 }
 
@@ -47,6 +63,103 @@ climate::ClimateTraits DaikinS21Climate::traits() {
   });
 
   return traits;
+}
+
+bool DaikinS21Climate::use_room_sensor() {
+  return this->room_sensor_unit_is_valid() && this->room_sensor_->has_state() &&
+         !isnanf(this->room_sensor_->get_state());
+}
+
+bool DaikinS21Climate::room_sensor_unit_is_valid() {
+  if (this->room_sensor_ != nullptr) {
+    auto u = this->room_sensor_->get_unit_of_measurement();
+    return u == "°C" || u == "°F";
+  }
+  return false;
+}
+
+float DaikinS21Climate::room_sensor_degc() {
+  float temp = this->room_sensor_->get_state();
+  if (this->room_sensor_->get_unit_of_measurement() == "°F") {
+    temp = fahrenheit_to_celsius(temp);
+  }
+  return temp;
+}
+
+float DaikinS21Climate::get_effective_current_temperature() {
+  if (this->use_room_sensor()) {
+    return this->room_sensor_degc();
+  }
+  return this->s21->get_temp_inside();
+}
+
+float DaikinS21Climate::get_room_temp_offset() {
+  if (!this->use_room_sensor()) {
+    return 0.0;
+  }
+  float room_val = this->room_sensor_degc();
+  float s21_val = this->s21->get_temp_inside();
+  return s21_val - room_val;
+}
+
+// What setpoint should be sent to s21, acconting for external room sensor.
+float DaikinS21Climate::calc_s21_setpoint(float target) {
+  float offset_target = target + this->get_room_temp_offset();
+  return std::round(offset_target / SETPOINT_STEP) * SETPOINT_STEP;
+}
+
+// How far from desired setpoint is the current S21 setpoint?
+float DaikinS21Climate::s21_setpoint_variance() {
+  return abs(this->s21->get_setpoint() -
+             this->calc_s21_setpoint(this->target_temperature));
+}
+
+void DaikinS21Climate::save_setpoint(float value, ESPPreferenceObject &pref) {
+  int16_t stored_val = static_cast<int16_t>(value * 10.0);
+  pref.save(&stored_val);
+}
+
+void DaikinS21Climate::save_setpoint(float value) {
+  auto mode = this->s21->get_climate_mode();
+  optional<float> prev = this->load_setpoint(mode);
+  // Only save if value is diff from what's already saved.
+  if (abs(value - prev.value_or(0.0)) >= SETPOINT_STEP) {
+    switch (mode) {
+      case DaikinClimateMode::Auto:
+        this->save_setpoint(value, this->auto_setpoint_pref);
+        break;
+      case DaikinClimateMode::Cool:
+        this->save_setpoint(value, this->cool_setpoint_pref);
+        break;
+      case DaikinClimateMode::Heat:
+        this->save_setpoint(value, this->heat_setpoint_pref);
+        break;
+    }
+  }
+}
+
+optional<float> DaikinS21Climate::load_setpoint(ESPPreferenceObject &pref) {
+  int16_t stored_val = 0;
+  if (!pref.load(&stored_val)) {
+    return {};
+  }
+  return static_cast<float>(stored_val) / 10.0;
+}
+
+optional<float> DaikinS21Climate::load_setpoint(DaikinClimateMode mode) {
+  optional<float> loaded;
+  switch (this->s21->get_climate_mode()) {
+    case DaikinClimateMode::Auto:
+      loaded = this->load_setpoint(this->auto_setpoint_pref);
+      break;
+    case DaikinClimateMode::Cool:
+      loaded = this->load_setpoint(this->cool_setpoint_pref);
+      break;
+    case DaikinClimateMode::Heat:
+      loaded = this->load_setpoint(this->heat_setpoint_pref);
+      break;
+  }
+  return loaded;
 }
 
 climate::ClimateMode DaikinS21Climate::d2e_climate_mode(
@@ -171,6 +284,13 @@ bool DaikinS21Climate::e2d_swing_v(climate::ClimateSwingMode mode) {
 }
 
 void DaikinS21Climate::update() {
+  if (this->use_room_sensor()) {
+    ESP_LOGD(TAG, "Room temp from external sensor: %.1f %s (%.1f °C)",
+             this->room_sensor_->get_state(),
+             this->room_sensor_->get_unit_of_measurement().c_str(),
+             this->room_sensor_degc());
+    ESP_LOGD(TAG, "  Offset: %.1f", this->get_room_temp_offset());
+  }
   if (this->s21->is_ready()) {
     if (this->s21->is_power_on()) {
       this->mode = this->d2e_climate_mode(this->s21->get_climate_mode());
@@ -182,8 +302,36 @@ void DaikinS21Climate::update() {
     this->set_custom_fan_mode_(this->d2e_fan_mode(this->s21->get_fan_mode()));
     this->swing_mode = this->d2e_swing_mode(this->s21->get_swing_v(),
                                             this->s21->get_swing_h());
-    this->current_temperature = this->s21->get_temp_inside();
-    this->target_temperature = this->s21->get_setpoint();
+    this->current_temperature = this->get_effective_current_temperature();
+
+    // Target temperature is stored by climate class, and is used to represent
+    // the user's desired temperature. This is distinct from the HVAC unit's
+    // setpoint because we may be using an external sensor. So we only update
+    // the target temperature here if it appears uninitialized.
+    float current_s21_sp = this->s21->get_setpoint();
+    float unexpected_diff = abs(this->expected_s21_setpoint - current_s21_sp);
+    if (this->target_temperature == 0.0) {
+      // Use stored setpoint for mode, or fall back to use s21's setpoint.
+      auto stored = this->load_setpoint(this->s21->get_climate_mode());
+      this->target_temperature = stored.value_or(current_s21_sp);
+      this->set_s21_climate();
+    } else if (unexpected_diff >= SETPOINT_STEP) {
+      // User probably set temp via IR remote -- so try to honor their wish by
+      // matching controller's target value to what they sent via remote.
+      ESP_LOGI(TAG, "S21 setpoint changed outside controller");
+      ESP_LOGI(TAG, "  Expected: %.1f", this->expected_s21_setpoint);
+      ESP_LOGI(TAG, "  Found: %.1f", current_s21_sp);
+      this->target_temperature = current_s21_sp;
+      ESP_LOGI(TAG, "  Target temp updated to %.1f", current_s21_sp);
+      this->set_s21_climate();
+    } else if (this->s21_setpoint_variance() >= SETPOINT_STEP) {
+      // Room temperature offset has probably changed, so we need to adjust the
+      // s21 setpoint based on the new difference.
+      this->set_s21_climate();
+      ESP_LOGI(TAG, "S21 setpoint updated to %.1f",
+               this->expected_s21_setpoint);
+    }
+
     this->publish_state();
   }
 }
@@ -195,23 +343,20 @@ void DaikinS21Climate::control(const climate::ClimateCall &call) {
   bool set_basic = false;
 
   if (call.get_mode().has_value()) {
-    climate_mode = call.get_mode().value();
+    this->mode = call.get_mode().value();
     set_basic = true;
   }
   if (call.get_target_temperature().has_value()) {
-    setpoint = call.get_target_temperature().value();
+    this->target_temperature = call.get_target_temperature().value();
     set_basic = true;
   }
   if (call.get_custom_fan_mode().has_value()) {
-    fan_mode = call.get_custom_fan_mode().value();
+    this->custom_fan_mode = call.get_custom_fan_mode().value();
     set_basic = true;
   }
 
   if (set_basic) {
-    this->s21->set_daikin_climate_settings(
-        climate_mode != climate::CLIMATE_MODE_OFF,
-        this->e2d_climate_mode(climate_mode), setpoint,
-        this->e2d_fan_mode(fan_mode));
+    this->set_s21_climate();
   }
 
   if (call.get_swing_mode().has_value()) {
@@ -219,6 +364,16 @@ void DaikinS21Climate::control(const climate::ClimateCall &call) {
     this->s21->set_swing_settings(this->e2d_swing_v(swing_mode),
                                   this->e2d_swing_h(swing_mode));
   }
+}
+
+void DaikinS21Climate::set_s21_climate() {
+  this->expected_s21_setpoint =
+      this->calc_s21_setpoint(this->target_temperature);
+  this->s21->set_daikin_climate_settings(
+      this->mode != climate::CLIMATE_MODE_OFF,
+      this->e2d_climate_mode(this->mode), this->expected_s21_setpoint,
+      this->e2d_fan_mode(this->custom_fan_mode.value()));
+  this->save_setpoint(this->target_temperature);
 }
 
 }  // namespace daikin_s21
