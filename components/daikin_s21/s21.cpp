@@ -415,6 +415,8 @@ void DaikinS21::set_daikin_climate_settings(bool power_on,
   ESP_LOGD(TAG, "Sending basic climate CMD (D1): %s", str_repr(cmd).c_str());
   if (!this->send_cmd({'D', '1'}, cmd)) {
     ESP_LOGW(TAG, "Failed basic climate CMD");
+  } else {
+    this->update();
   }
 }
 
@@ -426,6 +428,8 @@ void DaikinS21::set_swing_settings(bool swing_v, bool swing_h) {
   ESP_LOGD(TAG, "Sending swing CMD (D5): %s", str_repr(cmd).c_str());
   if (!this->send_cmd({'D', '5'}, cmd)) {
     ESP_LOGW(TAG, "Failed swing CMD");
+  } else {
+    this->update();
   }
 }
 

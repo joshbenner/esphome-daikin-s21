@@ -102,10 +102,14 @@ float DaikinS21Climate::get_room_temp_offset() {
   return s21_val - room_val;
 }
 
+float nearest_step(float temp) {
+  return std::round(temp / SETPOINT_STEP) * SETPOINT_STEP;
+}
+
 // What setpoint should be sent to s21, acconting for external room sensor.
 float DaikinS21Climate::calc_s21_setpoint(float target) {
   float offset_target = target + this->get_room_temp_offset();
-  return std::round(offset_target / SETPOINT_STEP) * SETPOINT_STEP;
+  return nearest_step(offset_target);
 }
 
 // How far from desired setpoint is the current S21 setpoint?
@@ -347,7 +351,8 @@ void DaikinS21Climate::control(const climate::ClimateCall &call) {
     set_basic = true;
   }
   if (call.get_target_temperature().has_value()) {
-    this->target_temperature = call.get_target_temperature().value();
+    this->target_temperature =
+        nearest_step(call.get_target_temperature().value());
     set_basic = true;
   }
   if (call.get_custom_fan_mode().has_value()) {
@@ -364,11 +369,18 @@ void DaikinS21Climate::control(const climate::ClimateCall &call) {
     this->s21->set_swing_settings(this->e2d_swing_v(swing_mode),
                                   this->e2d_swing_h(swing_mode));
   }
+
+  this->update();
 }
 
 void DaikinS21Climate::set_s21_climate() {
   this->expected_s21_setpoint =
       this->calc_s21_setpoint(this->target_temperature);
+  ESP_LOGI(TAG, "Controlling S21 climate:");
+  ESP_LOGI(TAG, "  Mode: %s", climate::climate_mode_to_string(this->mode));
+  ESP_LOGI(TAG, "  Setpoint: %.1f (s21: %.1f)", this->target_temperature,
+           this->expected_s21_setpoint);
+  ESP_LOGI(TAG, "  Fan: %s", this->custom_fan_mode.value().c_str());
   this->s21->set_daikin_climate_settings(
       this->mode != climate::CLIMATE_MODE_OFF,
       this->e2d_climate_mode(this->mode), this->expected_s21_setpoint,
