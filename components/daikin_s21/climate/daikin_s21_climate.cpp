@@ -366,10 +366,7 @@ void DaikinS21Climate::control(const climate::ClimateCall &call) {
       this->mode = climate_mode;
       set_basic = true;
       if (!call.get_target_temperature().has_value()) {
-        // Make target look uninitialized, which will run into initialization
-        // logic above, which uses the HVAC unit's own setpoint as the target.
-        this->target_temperature = 0.0;
-      } else {
+        // If call does not include target, then try to use saved target.
         DaikinClimateMode dmode = this->e2d_climate_mode(this->mode);
         optional<float> sp = this->load_setpoint(dmode);
         if (sp.has_value()) {
