@@ -36,7 +36,7 @@ class DaikinS21Climate : public climate::Climate,
   float get_s21_setpoint() { return this->s21->get_setpoint(); }
   float get_room_temp_offset();
 
-  bool mode_uses_setpoint(climate::ClimateMode mode);
+  bool should_check_setpoint(climate::ClimateMode mode);
   climate::ClimateAction d2e_climate_action();
   climate::ClimateMode d2e_climate_mode(DaikinClimateMode mode);
   DaikinClimateMode e2d_climate_mode(climate::ClimateMode mode);
@@ -49,6 +49,7 @@ class DaikinS21Climate : public climate::Climate,
  protected:
   sensor::Sensor *room_sensor_{nullptr};
   float expected_s21_setpoint;
+  int skip_setpoint_checks = 0;
 
   ESPPreferenceObject auto_setpoint_pref;
   ESPPreferenceObject cool_setpoint_pref;

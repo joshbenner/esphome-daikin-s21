@@ -166,11 +166,17 @@ optional<float> DaikinS21Climate::load_setpoint(DaikinClimateMode mode) {
   return loaded;
 }
 
-bool DaikinS21Climate::mode_uses_setpoint(climate::ClimateMode mode) {
-  return mode == climate::CLIMATE_MODE_AUTO ||
-         mode == climate::CLIMATE_MODE_COOL ||
-         mode == climate::CLIMATE_MODE_HEAT ||
-         mode == climate::CLIMATE_MODE_HEAT_COOL;
+bool DaikinS21Climate::should_check_setpoint(climate::ClimateMode mode) {
+  bool mode_uses_setpoint = mode == climate::CLIMATE_MODE_AUTO ||
+                            mode == climate::CLIMATE_MODE_COOL ||
+                            mode == climate::CLIMATE_MODE_HEAT ||
+                            mode == climate::CLIMATE_MODE_HEAT_COOL;
+  bool skip_check = false;
+  if (this->skip_setpoint_checks > 0) {
+    this->skip_setpoint_checks--;
+    skip_check = true;
+  }
+  return mode_uses_setpoint & !skip_check;
 }
 
 climate::ClimateMode DaikinS21Climate::d2e_climate_mode(
@@ -315,7 +321,7 @@ void DaikinS21Climate::update() {
                                             this->s21->get_swing_h());
     this->current_temperature = this->get_effective_current_temperature();
 
-    if (this->mode_uses_setpoint(this->mode)) {
+    if (this->should_check_setpoint(this->mode)) {
       // Target temperature is stored by climate class, and is used to represent
       // the user's desired temperature. This is distinct from the HVAC unit's
       // setpoint because we may be using an external sensor. So we only update
@@ -356,7 +362,7 @@ void DaikinS21Climate::control(const climate::ClimateCall &call) {
 
   if (call.get_mode().has_value()) {
     climate::ClimateMode climate_mode = call.get_mode().value();
-    if (this->mode != climate_mode){
+    if (this->mode != climate_mode) {
       this->mode = climate_mode;
       set_basic = true;
       if (!call.get_target_temperature().has_value()) {
@@ -407,6 +413,11 @@ void DaikinS21Climate::set_s21_climate() {
       this->mode != climate::CLIMATE_MODE_OFF,
       this->e2d_climate_mode(this->mode), this->expected_s21_setpoint,
       this->e2d_fan_mode(this->custom_fan_mode.value()));
+  // HVAC unit seems to take a few seconds to begin reporting mode and setpoint
+  // changes back to the controller, so when modifying settings, setpoint checks
+  // are skipped to avoid unexpected setpoint updates, especially when changing
+  // modes.
+  this->skip_setpoint_checks = 2;
   this->save_setpoint(this->target_temperature);
 }
 
