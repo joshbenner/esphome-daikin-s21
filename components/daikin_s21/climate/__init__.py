@@ -14,6 +14,7 @@ from .. import (
 )
 
 CONF_ROOM_TEMPERATURE_SENSOR = "room_temperature_sensor"
+CONF_SETPOINT_INTERVAL = "setpoint_interval"
 
 DaikinS21Climate = daikin_s21_ns.class_(
     "DaikinS21Climate", climate.Climate, cg.PollingComponent, DaikinS21Client
@@ -26,6 +27,9 @@ CONFIG_SCHEMA = cv.All(
         {
             cv.GenerateID(): cv.declare_id(DaikinS21Climate),
             cv.Optional(CONF_ROOM_TEMPERATURE_SENSOR): cv.use_id(sensor.Sensor),
+            cv.Optional(
+                CONF_SETPOINT_INTERVAL, default="300s"
+            ): cv.positive_time_period_seconds,
         }
     )
     .extend(cv.polling_component_schema("5s"))
@@ -43,3 +47,5 @@ async def to_code(config):
     if CONF_ROOM_TEMPERATURE_SENSOR in config:
         sens = await cg.get_variable(config[CONF_ROOM_TEMPERATURE_SENSOR])
         cg.add(var.set_room_sensor(sens))
+        if CONF_SETPOINT_INTERVAL in config:
+            cg.add(var.set_setpoint_interval(config[CONF_SETPOINT_INTERVAL]))

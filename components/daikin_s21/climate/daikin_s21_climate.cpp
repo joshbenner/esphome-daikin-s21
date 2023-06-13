@@ -32,6 +32,7 @@ void DaikinS21Climate::dump_config() {
     } else {
       ESP_LOGCONFIG(TAG, "  Room sensor: %s",
                     this->room_sensor_->get_name().c_str());
+      ESP_LOGCONFIG(TAG, "  Setpoint interval: %d", this->setpoint_interval);
     }
   }
   this->dump_traits_(TAG);
@@ -176,7 +177,10 @@ bool DaikinS21Climate::should_check_setpoint(climate::ClimateMode mode) {
     this->skip_setpoint_checks--;
     skip_check = true;
   }
-  return mode_uses_setpoint & !skip_check;
+  bool min_passed =
+      this->setpoint_interval == 0 || this->last_setpoint_check == 0 ||
+      (millis() - this->last_setpoint_check > (this->setpoint_interval * 1000));
+  return mode_uses_setpoint & !skip_check && min_passed;
 }
 
 climate::ClimateMode DaikinS21Climate::d2e_climate_mode(
@@ -322,6 +326,7 @@ void DaikinS21Climate::update() {
     this->current_temperature = this->get_effective_current_temperature();
 
     if (this->should_check_setpoint(this->mode)) {
+      this->last_setpoint_check = millis();
       // Target temperature is stored by climate class, and is used to represent
       // the user's desired temperature. This is distinct from the HVAC unit's
       // setpoint because we may be using an external sensor. So we only update

@@ -33,6 +33,9 @@ class DaikinS21Climate : public climate::Climate,
   void control(const climate::ClimateCall &call) override;
 
   void set_room_sensor(sensor::Sensor *sensor) { this->room_sensor_ = sensor; }
+  void set_setpoint_interval(uint16_t seconds) {
+    this->setpoint_interval = seconds;
+  };
   float get_s21_setpoint() { return this->s21->get_setpoint(); }
   float get_room_temp_offset();
 
@@ -50,6 +53,9 @@ class DaikinS21Climate : public climate::Climate,
   sensor::Sensor *room_sensor_{nullptr};
   float expected_s21_setpoint;
   uint8_t skip_setpoint_checks = 0;
+  uint16_t setpoint_interval = 0;
+  uint32_t last_setpoint_check = 0;
+
 
   ESPPreferenceObject auto_setpoint_pref;
   ESPPreferenceObject cool_setpoint_pref;
