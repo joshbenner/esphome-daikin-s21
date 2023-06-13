@@ -49,7 +49,7 @@ class DaikinS21Climate : public climate::Climate,
  protected:
   sensor::Sensor *room_sensor_{nullptr};
   float expected_s21_setpoint;
-  int skip_setpoint_checks = 0;
+  uint8_t skip_setpoint_checks = 0;
 
   ESPPreferenceObject auto_setpoint_pref;
   ESPPreferenceObject cool_setpoint_pref;
