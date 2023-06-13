@@ -166,6 +166,13 @@ optional<float> DaikinS21Climate::load_setpoint(DaikinClimateMode mode) {
   return loaded;
 }
 
+bool DaikinS21Climate::mode_uses_setpoint(climate::ClimateMode mode) {
+  return mode == climate::CLIMATE_MODE_AUTO ||
+         mode == climate::CLIMATE_MODE_COOL ||
+         mode == climate::CLIMATE_MODE_HEAT ||
+         mode == climate::CLIMATE_MODE_HEAT_COOL;
+}
+
 climate::ClimateMode DaikinS21Climate::d2e_climate_mode(
     DaikinClimateMode mode) {
   switch (mode) {
@@ -308,32 +315,34 @@ void DaikinS21Climate::update() {
                                             this->s21->get_swing_h());
     this->current_temperature = this->get_effective_current_temperature();
 
-    // Target temperature is stored by climate class, and is used to represent
-    // the user's desired temperature. This is distinct from the HVAC unit's
-    // setpoint because we may be using an external sensor. So we only update
-    // the target temperature here if it appears uninitialized.
-    float current_s21_sp = this->s21->get_setpoint();
-    float unexpected_diff = abs(this->expected_s21_setpoint - current_s21_sp);
-    if (this->target_temperature == 0.0) {
-      // Use stored setpoint for mode, or fall back to use s21's setpoint.
-      auto stored = this->load_setpoint(this->s21->get_climate_mode());
-      this->target_temperature = stored.value_or(current_s21_sp);
-      this->set_s21_climate();
-    } else if (unexpected_diff >= SETPOINT_STEP) {
-      // User probably set temp via IR remote -- so try to honor their wish by
-      // matching controller's target value to what they sent via remote.
-      ESP_LOGI(TAG, "S21 setpoint changed outside controller");
-      ESP_LOGI(TAG, "  Expected: %.1f", this->expected_s21_setpoint);
-      ESP_LOGI(TAG, "  Found: %.1f", current_s21_sp);
-      this->target_temperature = current_s21_sp;
-      ESP_LOGI(TAG, "  Target temp updated to %.1f", current_s21_sp);
-      this->set_s21_climate();
-    } else if (this->s21_setpoint_variance() >= SETPOINT_STEP) {
-      // Room temperature offset has probably changed, so we need to adjust the
-      // s21 setpoint based on the new difference.
-      this->set_s21_climate();
-      ESP_LOGI(TAG, "S21 setpoint updated to %.1f",
-               this->expected_s21_setpoint);
+    if (this->mode_uses_setpoint(this->mode)) {
+      // Target temperature is stored by climate class, and is used to represent
+      // the user's desired temperature. This is distinct from the HVAC unit's
+      // setpoint because we may be using an external sensor. So we only update
+      // the target temperature here if it appears uninitialized.
+      float current_s21_sp = this->s21->get_setpoint();
+      float unexpected_diff = abs(this->expected_s21_setpoint - current_s21_sp);
+      if (this->target_temperature == 0.0) {
+        // Use stored setpoint for mode, or fall back to use s21's setpoint.
+        auto stored = this->load_setpoint(this->s21->get_climate_mode());
+        this->target_temperature = stored.value_or(current_s21_sp);
+        this->set_s21_climate();
+      } else if (unexpected_diff >= SETPOINT_STEP) {
+        // User probably set temp via IR remote -- so try to honor their wish by
+        // matching controller's target value to what they sent via remote.
+        ESP_LOGI(TAG, "S21 setpoint changed outside controller");
+        ESP_LOGI(TAG, "  Expected: %.1f", this->expected_s21_setpoint);
+        ESP_LOGI(TAG, "  Found: %.1f", current_s21_sp);
+        this->target_temperature = current_s21_sp;
+        ESP_LOGI(TAG, "  Target temp updated to %.1f", current_s21_sp);
+        this->set_s21_climate();
+      } else if (this->s21_setpoint_variance() >= SETPOINT_STEP) {
+        // Room temperature offset has probably changed, so we need to adjust
+        // the s21 setpoint based on the new difference.
+        this->set_s21_climate();
+        ESP_LOGI(TAG, "S21 setpoint updated to %.1f",
+                 this->expected_s21_setpoint);
+      }
     }
 
     this->publish_state();
@@ -342,13 +351,26 @@ void DaikinS21Climate::update() {
 
 void DaikinS21Climate::control(const climate::ClimateCall &call) {
   float setpoint = this->target_temperature;
-  climate::ClimateMode climate_mode = this->mode;
   std::string fan_mode = this->custom_fan_mode.value_or("Automatic");
   bool set_basic = false;
 
   if (call.get_mode().has_value()) {
-    this->mode = call.get_mode().value();
-    set_basic = true;
+    climate::ClimateMode climate_mode = call.get_mode().value();
+    if (this->mode != climate_mode){
+      this->mode = climate_mode;
+      set_basic = true;
+      if (!call.get_target_temperature().has_value()) {
+        // Make target look uninitialized, which will run into initialization
+        // logic above, which uses the HVAC unit's own setpoint as the target.
+        this->target_temperature = 0.0;
+      } else {
+        DaikinClimateMode dmode = this->e2d_climate_mode(this->mode);
+        optional<float> sp = this->load_setpoint(dmode);
+        if (sp.has_value()) {
+          this->target_temperature = nearest_step(sp.value());
+        }
+      }
+    }
   }
   if (call.get_target_temperature().has_value()) {
     this->target_temperature =

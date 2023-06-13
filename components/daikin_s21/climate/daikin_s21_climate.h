@@ -36,6 +36,7 @@ class DaikinS21Climate : public climate::Climate,
   float get_s21_setpoint() { return this->s21->get_setpoint(); }
   float get_room_temp_offset();
 
+  bool mode_uses_setpoint(climate::ClimateMode mode);
   climate::ClimateAction d2e_climate_action();
   climate::ClimateMode d2e_climate_mode(DaikinClimateMode mode);
   DaikinClimateMode e2d_climate_mode(climate::ClimateMode mode);
