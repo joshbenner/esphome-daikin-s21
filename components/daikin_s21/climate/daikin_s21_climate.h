@@ -48,6 +48,9 @@ class DaikinS21Climate : public climate::Climate,
   climate::ClimateSwingMode d2e_swing_mode(bool swing_v, bool swing_h);
   bool e2d_swing_v(climate::ClimateSwingMode mode);
   bool e2d_swing_h(climate::ClimateSwingMode mode);
+  climate::ClimatePreset d2e_preset_mode(bool powerful, bool econo);
+  bool e2d_powerful(climate::ClimatePreset mode);
+  bool e2d_econo(climate::ClimatePreset mode);
 
  protected:
   sensor::Sensor *room_sensor_{nullptr};
