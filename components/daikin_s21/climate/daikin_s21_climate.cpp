@@ -63,6 +63,12 @@ climate::ClimateTraits DaikinS21Climate::traits() {
       climate::CLIMATE_SWING_HORIZONTAL,
   });
 
+  trails.set_supported_presets({
+      climate::CLIMATE_PRESET_NONE,
+      climate::CLIMATE_PRESET_BOOST,
+      climate::CLIMATE_PRESET_ECO,
+  });
+
   return traits;
 }
 
@@ -283,6 +289,26 @@ climate::ClimateAction DaikinS21Climate::d2e_climate_action() {
   }
 }
 
+climate::ClimatePreset DaikinS21Climate::d2e_preset_mode(bool powerful, bool econo)
+{
+  if(powerful)
+    return climate::CLIMATE_PRESET_BOOST;
+  if(econo)
+    return climate::CLIMATE_PRESET_ECO;
+  return climate::CLIMATE_PRESET_NONE;
+}
+
+bool DaikinS21Climate::e2d_powerful(climate::ClimatePreset mode)
+{
+  return mode==climate::CLIMATE_PRESET_BOOST;
+}
+
+bool DaikinS21Climate::e2d_econo(climate::ClimatePreset mode)
+{
+  return mode==climate::CLIMATE_PRESET_ECO;
+}
+
+
 climate::ClimateSwingMode DaikinS21Climate::d2e_swing_mode(bool swing_v,
                                                            bool swing_h) {
   if (swing_v && swing_h)
@@ -323,6 +349,7 @@ void DaikinS21Climate::update() {
     this->set_custom_fan_mode_(this->d2e_fan_mode(this->s21->get_fan_mode()));
     this->swing_mode = this->d2e_swing_mode(this->s21->get_swing_v(),
                                             this->s21->get_swing_h());
+    this->preset = this->d2e_preset_mode(this->s21->get_powerful(),this->s21->get_econo());
     this->current_temperature = this->get_effective_current_temperature();
 
     if (this->should_check_setpoint(this->mode)) {
@@ -398,6 +425,12 @@ void DaikinS21Climate::control(const climate::ClimateCall &call) {
     climate::ClimateSwingMode swing_mode = call.get_swing_mode().value();
     this->s21->set_swing_settings(this->e2d_swing_v(swing_mode),
                                   this->e2d_swing_h(swing_mode));
+  }
+
+  if (call.get_preset().has_value()) {
+    climate::ClimatePreset preset = call.get_preset().value();
+    this->s21->set_powerful_settings(this->e2d_powerful(preset));
+    this->s21->set_econo_settings(this->e2d_econo(preset));
   }
 
   this->update();

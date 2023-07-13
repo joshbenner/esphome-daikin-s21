@@ -307,6 +307,12 @@ bool DaikinS21::parse_response(std::vector<uint8_t> rcode,
           this->swing_v = payload[0] & 1;
           this->swing_h = payload[0] & 2;
           return true;
+        case '6':                // F6 -> G6 - "powerful" mode
+          this->powerful = (payload[0] == '2') ? 1 : 0;
+          break;
+        case '7':                // F7 - G7 - "eco" mode
+          this->econo = (payload[1] == '2') ? 1 : 0;
+          break;
       }
       break;
     case 'S':      // R -> S
@@ -354,7 +360,7 @@ bool DaikinS21::run_queries(std::vector<std::string> queries) {
 }
 
 void DaikinS21::update() {
-  std::vector<std::string> queries = {"F1", "F5", "RH", "RI", "Ra", "RL", "Rd"};
+  std::vector<std::string> queries = {"F1", "F5", "F6", "F7",  "RH", "RI", "Ra", "RL", "Rd"};
   if (this->run_queries(queries) && !this->ready) {
     ESP_LOGI(TAG, "Daikin S21 Ready");
     this->ready = true;
@@ -428,6 +434,30 @@ void DaikinS21::set_swing_settings(bool swing_v, bool swing_h) {
   ESP_LOGD(TAG, "Sending swing CMD (D5): %s", str_repr(cmd).c_str());
   if (!this->send_cmd({'D', '5'}, cmd)) {
     ESP_LOGW(TAG, "Failed swing CMD");
+  } else {
+    this->update();
+  }
+}
+
+void DaikinS21::set_powerful_settings(bool value)
+{
+  std::vector<uint8_t> cmd = {
+      (uint8_t) ('0' + (value ? 2 : 0)), '0', '0', '0'};
+  ESP_LOGD(TAG, "Sending swing CMD (D6): %s", str_repr(cmd).c_str());
+  if (!this->send_cmd({'D', '6'}, cmd)) {
+    ESP_LOGW(TAG, "Failed powerful CMD");
+  } else {
+    this->update();
+  }
+}
+
+void DaikinS21::set_econo_settings(bool value)
+{
+  std::vector<uint8_t> cmd = {
+      '0', (uint8_t) ('0' + (value ? 2 : 0)), '0', '0'};
+  ESP_LOGD(TAG, "Sending swing CMD (D7): %s", str_repr(cmd).c_str());
+  if (!this->send_cmd({'D', '7'}, cmd)) {
+    ESP_LOGW(TAG, "Failed econo CMD");
   } else {
     this->update();
   }

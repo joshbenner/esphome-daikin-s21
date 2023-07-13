@@ -54,6 +54,10 @@ class DaikinS21 : public PollingComponent {
   bool is_idle() { return this->idle; }
   bool get_swing_h() { return this->swing_h; }
   bool get_swing_v() { return this->swing_v; }
+  bool get_powerful() { return this->powerful; }
+  bool get_econo() { return this->econo; }
+  void set_powerful_settings(bool value);
+  void set_econo_settings(bool value);
 
  protected:
   bool read_frame(std::vector<uint8_t> &payload);
@@ -75,6 +79,8 @@ class DaikinS21 : public PollingComponent {
   int16_t setpoint = 23;
   bool swing_v = false;
   bool swing_h = false;
+  bool powerful = false;
+  bool econo = false;
   int16_t temp_inside = 0;
   int16_t temp_outside = 0;
   int16_t temp_coil = 0;
