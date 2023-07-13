@@ -63,7 +63,7 @@ climate::ClimateTraits DaikinS21Climate::traits() {
       climate::CLIMATE_SWING_HORIZONTAL,
   });
 
-  trails.set_supported_presets({
+  traits.set_supported_presets({
       climate::CLIMATE_PRESET_NONE,
       climate::CLIMATE_PRESET_BOOST,
       climate::CLIMATE_PRESET_ECO,
