@@ -309,10 +309,10 @@ bool DaikinS21::parse_response(std::vector<uint8_t> rcode,
           return true;
         case '6':                // F6 -> G6 - "powerful" mode
           this->powerful = (payload[0] == '2') ? 1 : 0;
-          break;
+          return true;
         case '7':                // F7 - G7 - "eco" mode
           this->econo = (payload[1] == '2') ? 1 : 0;
-          break;
+          return true;
       }
       break;
     case 'S':      // R -> S
