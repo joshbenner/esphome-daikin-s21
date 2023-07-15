@@ -169,6 +169,8 @@ optional<float> DaikinS21Climate::load_setpoint(DaikinClimateMode mode) {
     case DaikinClimateMode::Heat:
       loaded = this->load_setpoint(this->heat_setpoint_pref);
       break;
+    default:
+      break;
   }
   return loaded;
 }
