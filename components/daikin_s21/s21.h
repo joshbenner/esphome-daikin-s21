@@ -58,6 +58,9 @@ class DaikinS21 : public PollingComponent {
   bool get_econo() { return this->econo; }
   void set_powerful_settings(bool value);
   void set_econo_settings(bool value);
+  void set_has_presets(bool value) {
+    this->has_presets = value;
+  };
 
  protected:
   bool read_frame(std::vector<uint8_t> &payload);
@@ -86,6 +89,7 @@ class DaikinS21 : public PollingComponent {
   int16_t temp_coil = 0;
   uint16_t fan_rpm = 0;
   bool idle = true;
+  bool has_presets = true;
 };
 
 class DaikinS21Client {

@@ -36,6 +36,10 @@ class DaikinS21Climate : public climate::Climate,
   void set_setpoint_interval(uint16_t seconds) {
     this->setpoint_interval = seconds;
   };
+  void set_has_presets(bool value) {
+    this->has_presets = value;
+    this->s21->set_has_presets(value);
+  };
   float get_s21_setpoint() { return this->s21->get_setpoint(); }
   float get_room_temp_offset();
 
@@ -58,6 +62,7 @@ class DaikinS21Climate : public climate::Climate,
   uint8_t skip_setpoint_checks = 0;
   uint16_t setpoint_interval = 0;
   uint32_t last_setpoint_check = 0;
+  bool has_presets = true;
 
 
   ESPPreferenceObject auto_setpoint_pref;

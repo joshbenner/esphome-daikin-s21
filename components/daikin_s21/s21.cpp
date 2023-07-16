@@ -360,7 +360,11 @@ bool DaikinS21::run_queries(std::vector<std::string> queries) {
 }
 
 void DaikinS21::update() {
-  std::vector<std::string> queries = {"F1", "F5", "F6", "F7",  "RH", "RI", "Ra", "RL", "Rd"};
+  std::vector<std::string> queries;
+  if(has_presets)
+    queries = {"F1", "F5", "F6", "F7",  "RH", "RI", "Ra", "RL", "Rd"};
+  else
+    queries = {"F1", "F5", "RH", "RI", "Ra", "RL", "Rd"};
   if (this->run_queries(queries) && !this->ready) {
     ESP_LOGI(TAG, "Daikin S21 Ready");
     this->ready = true;
