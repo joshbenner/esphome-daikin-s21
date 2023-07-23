@@ -70,6 +70,7 @@ class DaikinS21 : public PollingComponent {
   bool run_queries(std::vector<std::string> queries);
   void dump_state();
   void check_uart_settings();
+  bool wait_byte_available(uint32_t  timeout);
 
   uart::UARTComponent *tx_uart{nullptr};
   uart::UARTComponent *rx_uart{nullptr};

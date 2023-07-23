@@ -191,6 +191,21 @@ std::string str_repr(std::vector<uint8_t> &bytes) {
   return str_repr(&bytes[0], bytes.size());
 }
 
+bool DaikinS21::wait_byte_available(uint32_t  timeout)
+{
+  uint32_t start = millis();
+  bool reading = false;
+  while (true) {
+    if (millis() - start > timeout) {
+      ESP_LOGW(TAG, "Timeout waiting for byte");
+      return false;
+    }
+    if(this->rx_uart->available())
+      return true;
+    yield();
+  }
+}
+
 bool DaikinS21::read_frame(std::vector<uint8_t> &payload) {
   uint8_t byte;
   std::vector<uint8_t> bytes;
@@ -252,6 +267,7 @@ bool DaikinS21::s21_query(std::vector<uint8_t> code) {
   }
   this->write_frame(code);
 
+  this->wait_byte_available(S21_RESPONSE_TIMEOUT);
   uint8_t byte;
   if (!this->rx_uart->read_byte(&byte)) {
     ESP_LOGW(TAG, "Timeout waiting for %s response", c.c_str());
@@ -480,6 +496,7 @@ bool DaikinS21::send_cmd(std::vector<uint8_t> code,
   }
 
   this->write_frame(frame);
+  this->wait_byte_available(S21_RESPONSE_TIMEOUT);
   if (!this->rx_uart->read_byte(&byte)) {
     ESP_LOGW(TAG, "Timeout waiting for ACK to %s", str_repr(frame).c_str());
     return false;
