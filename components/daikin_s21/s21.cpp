@@ -37,6 +37,8 @@ std::string daikin_fan_mode_to_string(DaikinFanMode mode) {
   switch (mode) {
     case DaikinFanMode::Auto:
       return "Auto";
+    case DaikinFanMode::Silent:
+      return "Silent";
     case DaikinFanMode::Speed1:
       return "1";
     case DaikinFanMode::Speed2:
