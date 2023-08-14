@@ -17,6 +17,7 @@ enum class DaikinClimateMode : uint8_t {
 
 enum class DaikinFanMode : uint8_t {
   Auto = 'A',
+  Silent = 'B',
   Speed1 = '3',
   Speed2 = '4',
   Speed3 = '5',
