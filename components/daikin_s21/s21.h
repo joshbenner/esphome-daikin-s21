@@ -7,8 +7,8 @@ namespace esphome {
 namespace daikin_s21 {
 
 enum class DaikinClimateMode : uint8_t {
-  Disabled = '0',
-  Auto = '1',
+  Disabled = '1',
+  Auto = '0',
   Dry = '2',
   Cool = '3',
   Heat = '4',
@@ -54,6 +54,13 @@ class DaikinS21 : public PollingComponent {
   bool is_idle() { return this->idle; }
   bool get_swing_h() { return this->swing_h; }
   bool get_swing_v() { return this->swing_v; }
+  bool get_powerful() { return this->powerful; }
+  bool get_econo() { return this->econo; }
+  void set_powerful_settings(bool value);
+  void set_econo_settings(bool value);
+  void set_has_presets(bool value) {
+    this->has_presets = value;
+  };
 
  protected:
   bool read_frame(std::vector<uint8_t> &payload);
@@ -63,6 +70,7 @@ class DaikinS21 : public PollingComponent {
   bool run_queries(std::vector<std::string> queries);
   void dump_state();
   void check_uart_settings();
+  bool wait_byte_available(uint32_t  timeout);
 
   uart::UARTComponent *tx_uart{nullptr};
   uart::UARTComponent *rx_uart{nullptr};
@@ -75,11 +83,14 @@ class DaikinS21 : public PollingComponent {
   int16_t setpoint = 23;
   bool swing_v = false;
   bool swing_h = false;
+  bool powerful = false;
+  bool econo = false;
   int16_t temp_inside = 0;
   int16_t temp_outside = 0;
   int16_t temp_coil = 0;
   uint16_t fan_rpm = 0;
   bool idle = true;
+  bool has_presets = true;
 };
 
 class DaikinS21Client {
