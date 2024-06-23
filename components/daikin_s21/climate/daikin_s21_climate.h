@@ -56,7 +56,11 @@ class DaikinS21Climate : public climate::Climate,
   bool e2d_powerful(climate::ClimatePreset mode);
   bool e2d_econo(climate::ClimatePreset mode);
 
+  void set_supported_modes(const std::set<esphome::climate::ClimateMode> &modes);
+
  protected:
+  esphome::climate::ClimateTraits traits_;
+
   sensor::Sensor *room_sensor_{nullptr};
   float expected_s21_setpoint;
   uint8_t skip_setpoint_checks = 0;
