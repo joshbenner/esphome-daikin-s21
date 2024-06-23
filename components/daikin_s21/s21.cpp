@@ -37,6 +37,8 @@ std::string daikin_fan_mode_to_string(DaikinFanMode mode) {
   switch (mode) {
     case DaikinFanMode::Auto:
       return "Auto";
+    case DaikinFanMode::Silent:
+      return "Silent";
     case DaikinFanMode::Speed1:
       return "1";
     case DaikinFanMode::Speed2:
@@ -84,6 +86,8 @@ int16_t temp_bytes_to_c10(uint8_t *bytes) { return bytes_to_num(bytes, 4); }
 int16_t temp_bytes_to_c10(std::vector<uint8_t> &bytes) {
   return temp_bytes_to_c10(&bytes[0]);
 }
+
+int16_t temp_f9_byte_to_c10(uint8_t *bytes) { return (*bytes / 2 - 64) * 10; }
 
 uint8_t c10_to_setpoint_byte(int16_t setpoint) {
   return (setpoint + 3) / 5 + 28;
@@ -235,10 +239,16 @@ bool DaikinS21::read_frame(std::vector<uint8_t> &payload) {
         bytes.pop_back();
         uint8_t calc_csum = s21_checksum(bytes);
         if (calc_csum != frame_csum) {
-          ESP_LOGW(TAG, "Checksum mismatch: %x (frame) != %x (calc from %s)",
-                   frame_csum, calc_csum,
-                   hex_repr(&bytes[0], bytes.size()).c_str());
-          return false;
+          // This sometimes happens with G9 reply, no idea why
+          if (bytes[0] == 0x47 && bytes[1] == 0x39) {
+            calc_csum += 2;
+          }
+          if (calc_csum != frame_csum) {
+            ESP_LOGW(TAG, "Checksum mismatch: %x (frame) != %x (calc from %s)",
+            frame_csum, calc_csum,
+            hex_repr(&bytes[0], bytes.size()).c_str());
+            return false;
+          }
         }
         break;
       }
@@ -329,6 +339,10 @@ bool DaikinS21::parse_response(std::vector<uint8_t> rcode,
         case '7':                // F7 - G7 - "eco" mode
           this->econo = (payload[1] == '2') ? 1 : 0;
           return true;
+        case '9':  // F9 -> G9 -- Inside temperature
+          this->temp_inside = temp_f9_byte_to_c10(&payload[0]);
+          this->temp_outside = temp_f9_byte_to_c10(&payload[1]);
+          return true;
       }
       break;
     case 'S':      // R -> S
@@ -376,14 +390,15 @@ bool DaikinS21::run_queries(std::vector<std::string> queries) {
 }
 
 void DaikinS21::update() {
-  std::vector<std::string> queries;
-  if(has_presets)
-    queries = {"F1", "F5", "F6", "F7",  "RH", "RI", "Ra", "RL", "Rd"};
-  else
-    queries = {"F1", "F5", "RH", "RI", "Ra", "RL", "Rd"};
-  if (this->run_queries(queries) && !this->ready) {
-    ESP_LOGI(TAG, "Daikin S21 Ready");
-    this->ready = true;
+  std::vector<std::string> queries = {"F1", "F5", "Rd"};
+  // These queries might fail but they won't affect the basic functionality
+  std::vector<std::string> failable_queries = {"F6", "F7", "F9", "RH", "RI", "Ra", "RL"};
+  if (this->run_queries(queries)) {
+    this->run_queries(failable_queries);
+    if(!this->ready) {
+      ESP_LOGI(TAG, "Daikin S21 Ready");
+      this->ready = true;
+    }
   }
   if (this->debug_protocol) {
     this->dump_state();

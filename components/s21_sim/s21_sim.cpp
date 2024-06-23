@@ -189,6 +189,8 @@ void S21SIM::handle_req(std::vector<uint8_t> req) {
     // nak
   } else if (code == "F8") {
     res.assign({'G', '8', '0', 0x00, 0x00, 0x00});
+  } else if (code == "F9") {
+    res.assign({'G', '9', 0xB2, 0xB4, 0xFF, 0x30});
   } else if (code == "FU0F") {  // ??
     // nak
   } else if (code == "RH") {    // Inside temp
