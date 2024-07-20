@@ -159,7 +159,10 @@ optional<float> DaikinS21Climate::load_setpoint(ESPPreferenceObject &pref) {
   if (!pref.load(&stored_val)) {
     return {};
   }
-  return static_cast<float>(stored_val) / 10.0;
+  float result = static_cast<float>(stored_val) / 10.0;
+  if(result<0)
+    result = 0;
+  return result;
 }
 
 optional<float> DaikinS21Climate::load_setpoint(DaikinClimateMode mode) {
