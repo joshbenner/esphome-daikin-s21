@@ -1,3 +1,4 @@
+#include <cinttypes>
 #include "s21.h"
 
 using namespace esphome;
@@ -105,7 +106,7 @@ void DaikinS21::check_uart_settings() {
       ESP_LOGE(
           TAG,
           "  Invalid baud_rate: Integration requested baud_rate %u but you "
-          "have %u!",
+          "have %" PRIu32 "!",
           S21_BAUD_RATE, uart->get_baud_rate());
     }
     if (uart->get_stop_bits() != S21_STOP_BITS) {
@@ -133,7 +134,7 @@ void DaikinS21::check_uart_settings() {
 
 void DaikinS21::dump_config() {
   ESP_LOGCONFIG(TAG, "DaikinS21:");
-  ESP_LOGCONFIG(TAG, "  Update interval: %u", this->get_update_interval());
+  ESP_LOGCONFIG(TAG, "  Update interval: %" PRIu32, this->get_update_interval());
   this->check_uart_settings();
 }
 
