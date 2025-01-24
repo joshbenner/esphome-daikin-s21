@@ -333,7 +333,7 @@ void DaikinS21Climate::update() {
       // the target temperature here if it appears uninitialized.
       float current_s21_sp = this->s21->get_setpoint();
       float unexpected_diff = abs(this->expected_s21_setpoint - current_s21_sp);
-      if (this->target_temperature == 0.0) {
+      if (this->target_temperature == 0.0 || isnanf(this->target_temperature)) {
         // Use stored setpoint for mode, or fall back to use s21's setpoint.
         auto stored = this->load_setpoint(this->s21->get_climate_mode());
         this->target_temperature = stored.value_or(current_s21_sp);
