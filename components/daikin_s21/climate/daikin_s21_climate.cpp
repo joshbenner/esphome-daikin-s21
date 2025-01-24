@@ -153,7 +153,7 @@ optional<float> DaikinS21Climate::load_setpoint(ESPPreferenceObject &pref) {
 
 optional<float> DaikinS21Climate::load_setpoint(DaikinClimateMode mode) {
   optional<float> loaded;
-  switch (this->s21->get_climate_mode()) {
+  switch (mode) {
     case DaikinClimateMode::Auto:
       loaded = this->load_setpoint(this->auto_setpoint_pref);
       break;
