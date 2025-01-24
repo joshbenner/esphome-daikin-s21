@@ -125,7 +125,7 @@ void DaikinS21Climate::save_setpoint(float value, ESPPreferenceObject &pref) {
 }
 
 void DaikinS21Climate::save_setpoint(float value) {
-  auto mode = this->s21->get_climate_mode();
+  auto mode = this->e2d_climate_mode(this->mode);
   optional<float> prev = this->load_setpoint(mode);
   // Only save if value is diff from what's already saved.
   if (abs(value - prev.value_or(0.0)) >= SETPOINT_STEP) {
