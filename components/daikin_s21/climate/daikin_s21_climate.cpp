@@ -126,7 +126,7 @@ void DaikinS21Climate::save_setpoint(float value, ESPPreferenceObject &pref) {
 }
 
 void DaikinS21Climate::save_setpoint(float value) {
-  auto mode = this->s21->get_climate_mode();
+  auto mode = this->e2d_climate_mode(this->mode);
   optional<float> prev = this->load_setpoint(mode);
   // Only save if value is diff from what's already saved.
   if (abs(value - prev.value_or(0.0)) >= SETPOINT_STEP) {
@@ -156,7 +156,7 @@ optional<float> DaikinS21Climate::load_setpoint(ESPPreferenceObject &pref) {
 
 optional<float> DaikinS21Climate::load_setpoint(DaikinClimateMode mode) {
   optional<float> loaded;
-  switch (this->s21->get_climate_mode()) {
+  switch (mode) {
     case DaikinClimateMode::Auto:
       loaded = this->load_setpoint(this->auto_setpoint_pref);
       break;
@@ -338,7 +338,7 @@ void DaikinS21Climate::update() {
       // the target temperature here if it appears uninitialized.
       float current_s21_sp = this->s21->get_setpoint();
       float unexpected_diff = abs(this->expected_s21_setpoint - current_s21_sp);
-      if (this->target_temperature == 0.0) {
+      if (this->target_temperature == 0.0 || isnanf(this->target_temperature)) {
         // Use stored setpoint for mode, or fall back to use s21's setpoint.
         auto stored = this->load_setpoint(this->s21->get_climate_mode());
         this->target_temperature = stored.value_or(current_s21_sp);
