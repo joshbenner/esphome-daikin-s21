@@ -1,3 +1,4 @@
+#include <cinttypes>
 #include "esphome/core/defines.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
@@ -24,7 +25,7 @@ void DaikinS21Climate::setup() {
 
 void DaikinS21Climate::dump_config() {
   ESP_LOGCONFIG(TAG, "DaikinS21Climate:");
-  ESP_LOGCONFIG(TAG, "  Update interval: %u", this->get_update_interval());
+  ESP_LOGCONFIG(TAG, "  Update interval: %" PRIu32, this->get_update_interval());
   if (this->room_sensor_ != nullptr) {
     if (!this->room_sensor_unit_is_valid()) {
       ESP_LOGCONFIG(TAG, "  ROOM SENSOR: INVALID UNIT '%s' (must be °C or °F)",
@@ -139,6 +140,8 @@ void DaikinS21Climate::save_setpoint(float value) {
       case DaikinClimateMode::Heat:
         this->save_setpoint(value, this->heat_setpoint_pref);
         break;
+      default:
+        break;
     }
   }
 }
@@ -162,6 +165,8 @@ optional<float> DaikinS21Climate::load_setpoint(DaikinClimateMode mode) {
       break;
     case DaikinClimateMode::Heat:
       loaded = this->load_setpoint(this->heat_setpoint_pref);
+      break;
+    default:
       break;
   }
   return loaded;
