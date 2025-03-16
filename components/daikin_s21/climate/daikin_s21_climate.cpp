@@ -10,7 +10,7 @@ using namespace esphome;
 namespace esphome {
 namespace daikin_s21 {
 
-#define SETPOINT_MIN 18
+#define SETPOINT_MIN 10
 #define SETPOINT_MAX 32
 #define SETPOINT_STEP 0.5f
 
@@ -416,7 +416,7 @@ void DaikinS21Climate::set_s21_climate() {
   this->expected_s21_setpoint =
       this->calc_s21_setpoint(this->target_temperature);
   ESP_LOGI(TAG, "Controlling S21 climate:");
-  ESP_LOGI(TAG, "  Mode: %s", climate::climate_mode_to_string(this->mode));
+  ESP_LOGI(TAG, "  Mode: %s", LOG_STR_ARG(climate::climate_mode_to_string(this->mode)));
   ESP_LOGI(TAG, "  Setpoint: %.1f (s21: %.1f)", this->target_temperature,
            this->expected_s21_setpoint);
   ESP_LOGI(TAG, "  Fan: %s", this->custom_fan_mode.value().c_str());
