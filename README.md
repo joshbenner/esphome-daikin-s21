@@ -79,6 +79,11 @@ uart:
 daikin_s21:
   tx_uart: s21_uart
   rx_uart: s21_uart
+  supported_modes:
+    - cool
+    - heat
+    - dry
+    - fan_only
 
 climate:
   - name: My Daikin
