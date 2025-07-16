@@ -39,32 +39,32 @@ void DaikinS21Climate::dump_config() {
   this->dump_traits_(TAG);
 }
 
+void DaikinS21Climate::set_supported_modes(const std::set<climate::ClimateMode> &modes) {
+  this->traits_.set_supported_modes(modes);
+  this->traits_.add_supported_mode(climate::CLIMATE_MODE_OFF);   // Always available
+  this->traits_.add_supported_mode(climate::CLIMATE_MODE_AUTO);  // Always available
+}
+
 climate::ClimateTraits DaikinS21Climate::traits() {
-  auto traits = climate::ClimateTraits();
 
-  traits.set_supports_action(true);
+  this->traits_.set_supports_action(true);
 
-  traits.set_supports_current_temperature(true);
-  traits.set_visual_min_temperature(SETPOINT_MIN);
-  traits.set_visual_max_temperature(SETPOINT_MAX);
-  traits.set_visual_temperature_step(SETPOINT_STEP);
-  traits.set_supports_two_point_target_temperature(false);
+  this->traits_.set_supports_current_temperature(true);
+  this->traits_.set_visual_min_temperature(SETPOINT_MIN);
+  this->traits_.set_visual_max_temperature(SETPOINT_MAX);
+  this->traits_.set_visual_temperature_step(SETPOINT_STEP);
+  this->traits_.set_supports_two_point_target_temperature(false);
 
-  traits.set_supported_modes(
-      {climate::CLIMATE_MODE_OFF, climate::CLIMATE_MODE_HEAT_COOL,
-       climate::CLIMATE_MODE_COOL, climate::CLIMATE_MODE_HEAT,
-       climate::CLIMATE_MODE_FAN_ONLY, climate::CLIMATE_MODE_DRY});
+  this->traits.set_supported_custom_fan_modes({"Automatic", "Silent", "1", "2", "3", "4", "5"});
 
-  traits.set_supported_custom_fan_modes({"Automatic", "Silent", "1", "2", "3", "4", "5"});
-
-  traits.set_supported_swing_modes({
+  this->traits_.set_supported_swing_modes({
       climate::CLIMATE_SWING_OFF,
       climate::CLIMATE_SWING_BOTH,
       climate::CLIMATE_SWING_VERTICAL,
       climate::CLIMATE_SWING_HORIZONTAL,
   });
 
-  return traits;
+  return this->traits_;
 }
 
 bool DaikinS21Climate::use_room_sensor() {
